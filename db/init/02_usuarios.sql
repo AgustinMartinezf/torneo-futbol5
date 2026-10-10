@@ -1,0 +1,2 @@
+-- Usuarios de base de datos con permisos diferenciados (administrador / planillero).
+-- Se completa en el Turno 02.

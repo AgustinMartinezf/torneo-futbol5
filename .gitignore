@@ -1,0 +1,29 @@
+# --- Entorno / secretos ---
+.env
+*.local
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# --- Node / React ---
+node_modules/
+dist/
+.vite/
+
+# --- Editores / SO ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Contexto de trabajo local (no es entregable) ---
+.ai/
+AGENTS.md
+CLAUDE.md
+.claude/
+.codex/
+.cursor/
