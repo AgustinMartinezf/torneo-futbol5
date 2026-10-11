@@ -1,5 +1,5 @@
 -- Esquema de la base del Torneo Interfacultades de Fútbol 5.
--- Turno 01, modelo de datos. MySQL 8.4, InnoDB, utf8mb4.
+-- MySQL 8.4, InnoDB, utf8mb4.
 --
 -- Tablas y columnas se llaman como en la letra, salvo contrasena y direccion,
 -- que van sin ñ ni tilde (supuesto S-12).
@@ -7,8 +7,8 @@
 -- reciba errores que se puedan leer.
 -- Todas las FK son ON DELETE RESTRICT. ON UPDATE CASCADE solo se usa hacia
 -- claves naturales: jugador.ci y la clave de cancha (ADR 0007).
--- Las reglas que necesitan triggers se hacen en el turno de cada feature
--- (ver docs/informe.md, sección 3.2).
+-- Las reglas que necesitan triggers van en scripts aparte, junto con la
+-- funcionalidad que las usa (ver docs/informe.md, sección 3.2).
 --
 -- MySQL no deja usar en un CHECK una columna que está en una FK con CASCADE,
 -- ni basar una columna generada en ella. Por eso el CHECK de formato de la
@@ -283,7 +283,8 @@ CREATE TABLE tarjeta (
 -- inscripto en esa edición. De ahí sale su equipo para el reporte de
 -- sanciones por equipo (ADR 0005).
 -- id_tarjeta es un atributo agregado: guarda la tarjeta que originó una sanción
--- automática. Es ON DELETE RESTRICT y la reversión queda para el turno 09 (ADR 0010).
+-- automática. Es ON DELETE RESTRICT; la reversión de la sanción se hace junto con
+-- la lógica de sanciones (ADR 0010).
 CREATE TABLE sancion_jugador (
     id_sancion          INT              NOT NULL AUTO_INCREMENT,
     ci_jugador          VARCHAR(8)       NOT NULL,
