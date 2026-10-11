@@ -1,19 +1,15 @@
-# ADR 0009 · `ci` como VARCHAR(8)
+# ADR 0009: La CI como VARCHAR(8)
 
-Estado: aceptada. Turno 01.
+## El problema
+La cédula uruguaya tiene 7 u 8 dígitos contando el verificador. Había que elegir si guardarla como número o como texto.
 
-## Contexto
-La cédula uruguaya tiene 7 u 8 dígitos, contando el verificador. Es un identificador.
+## Qué hicimos
+`ci` es VARCHAR(8), sin puntos ni guion, con un CHECK que pide solo números y entre 7 y 8 dígitos
+(`REGEXP_LIKE(ci, '^[0-9]{7,8}$')`). El dígito verificador lo controlamos en el back y en el front.
 
-## Decisión
-`ci VARCHAR(8)` con `chk_jugador_ci CHECK (REGEXP_LIKE(ci, '^[0-9]{7,8}$'))`, sin puntos ni guion.
-El dígito verificador lo controlan el back y el front. Se podría hacer con un trigger, pero es una validación de
-formato, no una regla del torneo.
+## Qué descartamos y por qué
+Usar INT. Ocupa menos, pero con la CI no se hacen cuentas, y como número se pueden perder los ceros de adelante.
 
-## Alternativa descartada
-`INT`. Ocupa menos, pero con una CI no se hacen cuentas, y un tipo numérico invita a formatearla o a perder ceros a la
-izquierda. Además obligaría a que todas las columnas de CI de las otras tablas fueran INT, por las FK.
-
-## Consecuencias
-El CHECK de formato está solo en `jugador`. En las tablas hijas, la columna forma parte de FK con `ON UPDATE CASCADE`,
-y MySQL no permite combinar eso con un CHECK. Igual están cubiertas: solo pueden tener CI que ya existen en `jugador`.
+## Qué implica
+El CHECK está solo en `jugador`. En las otras tablas la CI es parte de FK con `ON UPDATE CASCADE`, y MySQL no deja
+poner un CHECK ahí. Igual no hace falta, porque esas tablas solo pueden tener CI que ya existen en `jugador`.

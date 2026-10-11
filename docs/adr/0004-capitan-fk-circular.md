@@ -1,27 +1,25 @@
-# ADR 0004 · Capitán con FK circular hacia el plantel, admitiendo NULL
+# ADR 0004: FK del capitán hacia el plantel
 
-Estado: aceptada. Turno 01.
+## El problema
+La letra dice que el capitán "debe ser uno de sus jugadores". Si `ci_capitan` apunta a `jugador`, solo se controla que
+el jugador exista, pero podría ser capitán alguien de otro equipo.
 
-## Contexto
-La letra dice que cada equipo tiene un capitán "que debe ser uno de sus jugadores". Una FK `ci_capitan → jugador(ci)`
-solo asegura que el capitán exista como jugador. No asegura que esté en el plantel de ese equipo.
+## Qué hicimos
+La FK del capitán es `(id_equipo, ci_capitan)` hacia el plantel (`equipo_jugador_torneo`). Así el capitán tiene que
+estar en el plantel de su propio equipo.
 
-## Decisión
-Creamos `fk_equipo_capitan FOREIGN KEY (id_equipo, ci_capitan) REFERENCES equipo_jugador_torneo (id_equipo, ci_jugador)`:
-el par equipo y capitán tiene que existir en el plantel.
+Como el plantel apunta a `equipo` y `equipo` apunta al plantel, la relación es circular. Por eso esta FK se agrega al
+final con `ALTER TABLE`, cuando ya existen las dos tablas.
 
-La relación es circular, porque el plantel apunta al equipo y el equipo al plantel. Por eso la FK se agrega con
-`ALTER TABLE` después de crear las dos tablas.
+`ci_capitan` puede ser NULL, porque primero se crea el equipo y después se cargan los jugadores. Cuando es NULL,
+MySQL no controla la FK.
 
-`ci_capitan` admite NULL porque el equipo se crea antes que su plantel. Cuando vale NULL, MySQL no controla la FK.
+Si se quiere sacar al capitán del plantel, da error (`ON DELETE RESTRICT`): primero hay que elegir otro capitán. Si se
+cambia la CI del jugador, el capitán se actualiza solo (`ON UPDATE CASCADE`). Esto último lo probamos.
 
-Las acciones son `ON DELETE RESTRICT` (para sacar al capitán del plantel primero hay que nombrar a otro) y
-`ON UPDATE CASCADE` (si se corrige la CI del jugador, el capitán se actualiza solo; lo probamos en el turno 01).
+## Qué descartamos y por qué
+Apuntar a `jugador` y controlar con un trigger que el capitán esté en el plantel. Funciona, pero preferimos hacerlo con
+una FK si se podía.
 
-## Alternativa descartada
-Una FK simple `ci_capitan → jugador(ci)` y un trigger que controle que el capitán esté en el plantel. Funciona, pero
-pone en código procedural una regla que se puede declarar.
-
-## Consecuencias
-Exigir que el equipo tenga capitán cuando el torneo pasa a `en curso` queda para un trigger del turno 06.
-`SET NULL` no sirve como acción: pondría en NULL también `id_equipo`, que es la PK.
+## Qué implica
+Que el equipo tenga capitán cuando el torneo pasa a `en curso` lo vamos a controlar con un trigger en el ABM de equipos.

@@ -1,24 +1,21 @@
-# ADR 0001 · ENUM para los dominios cerrados de la letra
+# ADR 0001: ENUM para los valores fijos de la letra
 
-Estado: aceptada. Turno 01.
+## El problema
+La letra da listas de valores fijos para `rol`, `jugador.tipo`, `torneo.estado`, `cancha.superficie`, `partido.estado`,
+`tarjeta.color` y `sancion_jugador.motivo`. Además quisimos limitar `complejo.departamento`.
 
-## Contexto
-La letra da listas cerradas de valores para `rol`, `jugador.tipo`, `torneo.estado`, `cancha.superficie`,
-`partido.estado`, `tarjeta.color` y `sancion_jugador.motivo`. Además decidimos acotar `complejo.departamento`.
+## Qué hicimos
+Usamos ENUM con los valores tal cual están en la letra, con tildes (`'inscripción'`, `'acumulación de amarillas'`, etc.).
+`departamento` es un ENUM con los 19 departamentos. MySQL 8.4 trabaja en modo estricto, así que si llega un valor que
+no está en la lista da error.
 
-## Decisión
-Usamos `ENUM` con los valores tal cual los escribe la letra, con tildes (`'inscripción'`, `'en curso'`,
-`'acumulación de amarillas'`, `'sintético'`). `departamento` es un ENUM con los 19 departamentos de Uruguay.
-`techada` y `autogol` son `BOOLEAN` con `CHECK (x IN (0,1))`, porque `BOOLEAN` en MySQL es `TINYINT(1)` y aceptaría un 5.
+`techada` y `autogol` son BOOLEAN, pero les pusimos un CHECK para que solo acepten 0 o 1, porque en MySQL un BOOLEAN es
+un TINYINT y aceptaría un 5.
 
-MySQL 8.4 trabaja en modo estricto (`STRICT_TRANS_TABLES`). Si llega un valor que no está en el ENUM, da error en vez
-de guardar una cadena vacía.
+## Qué descartamos y por qué
+Hacer una tabla para cada lista (`tipo_jugador`, `estado_partido`...) con FK. Eran 8 tablas más y varios JOIN, y como
+cada valor tiene una regla atada (por ejemplo, `cancelado` libera la cancha), agregar uno nuevo igual implica cambiar
+código.
 
-## Alternativa descartada
-Tablas catálogo (`tipo_jugador`, `estado_partido`, etc.) con FK. Sirven cuando los valores cambian seguido o tienen
-atributos propios. Acá cada valor está atado a una regla: `cancelado`, por ejemplo, libera la cancha. Agregar un valor
-igual obliga a tocar código, y las tablas catálogo nos sumaban 8 tablas y varios JOIN sin ganar nada.
-
-## Consecuencias
-Para agregar un valor hay que hacer `ALTER TABLE`. Lo aceptamos, porque eso implica cambiar reglas de todos modos.
-El back y el front tienen que mandar los valores con tilde y en UTF-8.
+## Qué implica
+Para agregar un valor hay que hacer `ALTER TABLE`. El back y el front tienen que mandar los valores con las tildes.

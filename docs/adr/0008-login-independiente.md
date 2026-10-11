@@ -1,24 +1,22 @@
-# ADR 0008 · `login` independiente de `jugador`, con la contraseña hasheada
+# ADR 0008: `login` separado de `jugador` y contraseña con hash
 
-Estado: aceptada. Turno 01.
+## El problema
+La letra pone `login (correo, contraseña, rol)` sin relacionarlo con ninguna tabla. Los que usan el sistema son los
+administradores y los planilleros, no los jugadores.
 
-## Contexto
-La letra define `login (correo, contraseña, rol [administrador, planillero])` sin relacionarlo con otra tabla.
-Los usuarios del sistema son administradores y planilleros de la organización, no jugadores.
+## Qué hicimos
+`login` no tiene FK. La PK es `correo`, `contrasena` es VARCHAR(255) y `rol` es un ENUM con `administrador` y
+`planillero`.
 
-## Decisión
-`login` no tiene FK. `correo` es la PK, `contrasena` es `VARCHAR(255)` y `rol` es `ENUM('administrador','planillero')`.
+En `contrasena` guardamos el hash (bcrypt), no la contraseña. Un hash de bcrypt tiene 60 caracteres, así que pusimos un
+CHECK de que tenga por lo menos 60. Si alguien guarda una contraseña en texto plano por error, la base no la acepta.
+También hay un CHECK para el formato del correo.
 
-La contraseña se guarda como hash bcrypt, que mide 60 caracteres. `chk_login_contrasena_hash` exige
-`CHAR_LENGTH(contrasena) >= 60`, así que una contraseña en texto plano guardada por error no entra. Los 255 caracteres
-dejan lugar para otros algoritmos, como argon2. `chk_login_correo` controla el formato básico del correo.
+La columna se llama `contrasena` sin ñ para no tener problemas con caracteres raros en el SQL.
 
-La columna se llama `contrasena`, sin ñ, para no tener identificadores con caracteres no ASCII (supuesto S-12).
+## Qué descartamos y por qué
+Unir `login` con `jugador`. No tenía sentido porque los jugadores no entran al sistema, y la letra no lo pide.
 
-## Alternativa descartada
-Vincular `login` con `jugador` por correo o CI. Mezcla al usuario del sistema con el participante del torneo, y la
-letra no lo pide.
-
-## Consecuencias
-Los jugadores no entran al sistema. Si algún día hiciera falta, se agrega una FK opcional.
-Cada rol de la aplicación se corresponde con un usuario de base de datos con sus propios permisos (turno 02).
+## Qué implica
+Si en algún momento los jugadores tuvieran que entrar, habría que agregar una FK. Los permisos de cada rol en la base
+se explican en la sección 3.3 del informe.

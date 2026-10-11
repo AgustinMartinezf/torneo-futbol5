@@ -141,7 +141,7 @@ erDiagram
     tarjeta |o--o| sancion_jugador : "origina"
 ```
 
-## Relaciones que conviene mirar dos veces
+## Relaciones con FK compuestas
 El plantel apunta a `equipo` por `(id_equipo, id_torneo)`, así que su `id_torneo` no puede ser distinto del del equipo.
 El equipo, a su vez, apunta al plantel por `(id_equipo, ci_capitan)`: es una relación circular, y garantiza que el
 capitán juegue en su propio equipo.

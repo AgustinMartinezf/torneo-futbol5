@@ -1,28 +1,25 @@
-# ADR 0007 · Política de ON DELETE y ON UPDATE
+# ADR 0007: Qué pasa al borrar o modificar (ON DELETE / ON UPDATE)
 
-Estado: aceptada. Turno 01.
+## El problema
+Para cada FK hay que decidir qué pasa si se borra o se modifica la fila a la que apunta. Si usábamos CASCADE para
+borrar, por ejemplo, borrar un partido se llevaría los goles y las tarjetas sin avisar. Además, en MySQL los borrados en
+cascada no disparan triggers.
 
-## Contexto
-Cada FK necesita una acción para el borrado y otra para la actualización. Un borrado en cascada puede llevarse
-historial (goles, tarjetas, sanciones) sin que nadie se entere. Además, en MySQL los borrados en cascada no disparan
-triggers, así que podrían saltearse controles de los turnos que vienen.
+## Qué hicimos
+Todas las FK son `ON DELETE RESTRICT`: no se puede borrar algo que tiene cosas que dependen de él. Si hay que borrar,
+el back borra primero lo que depende, dentro de una transacción.
 
-## Decisión
-Todas las FK son `ON DELETE RESTRICT`. Para borrar algo, el backend primero borra lo que depende de eso, a mano y
-dentro de una transacción.
-
-`ON UPDATE CASCADE` se usa solo hacia claves naturales, que son las que alguien puede necesitar corregir: `jugador.ci`
-(que se propaga al plantel, y de ahí al capitán, la planilla, los goles, las tarjetas y la sanción) y la clave de
-`cancha (nombre_cancha, id_complejo)` hacia `partido`. Hacia las claves surrogate (`AUTO_INCREMENT`), que nunca cambian,
-usamos `ON UPDATE RESTRICT`.
+`ON UPDATE CASCADE` lo usamos solo para la CI del jugador y para la clave de `cancha`, que son datos que alguien puede
+tener que corregir. Si se cambia una CI, el cambio pasa al plantel, al capitán, la planilla, los goles, las tarjetas y
+las sanciones. Lo probamos y anduvo. Los id autoincrementales nunca cambian, así que esas FK son `ON UPDATE RESTRICT`.
 
 | FK | ON DELETE | ON UPDATE |
 |---|---|---|
 | `jugador → facultad`, `equipo → facultad/torneo`, `cancha → complejo` | RESTRICT | RESTRICT |
-| `equipo_jugador_torneo → equipo (id_equipo, id_torneo)` | RESTRICT | RESTRICT |
+| `equipo_jugador_torneo → equipo` | RESTRICT | RESTRICT |
 | `equipo_jugador_torneo → jugador` | RESTRICT | CASCADE |
 | `equipo → equipo_jugador_torneo` (capitán) | RESTRICT | CASCADE |
-| `partido → torneo / equipo (x2) / turno` | RESTRICT | RESTRICT |
+| `partido → torneo / equipo / turno` | RESTRICT | RESTRICT |
 | `partido → cancha` | RESTRICT | CASCADE |
 | `planilla_partido → partido` | RESTRICT | RESTRICT |
 | `planilla_partido → equipo_jugador_torneo` | RESTRICT | CASCADE |
@@ -30,16 +27,12 @@ usamos `ON UPDATE RESTRICT`.
 | `sancion_jugador → equipo_jugador_torneo` | RESTRICT | CASCADE |
 | `sancion_jugador → tarjeta` | RESTRICT | RESTRICT |
 
-La regla "un partido jugado no puede eliminarse" no se resuelve con una FK, porque la FK no ve el `estado`. La
-prohibición completa va con un trigger `BEFORE DELETE` en el turno 07. Mientras tanto, el `RESTRICT` desde la planilla
-ya impide borrar un partido que tenga planilla cargada.
+Lo de que "un partido jugado no se puede borrar" no se puede hacer con una FK, porque depende del estado. Va con un
+trigger en el ABM de partidos. Por ahora, con el RESTRICT ya no se puede borrar un partido que tenga planilla.
 
-## Alternativa descartada
-`ON DELETE CASCADE` en las tablas que dependen de otras, de modo que borrar un partido borre su planilla, sus goles y
-sus tarjetas. Es cómodo para el ABM, pero destruye historial y se saltea los triggers.
+## Qué descartamos y por qué
+Usar `ON DELETE CASCADE` en todo. Era más cómodo para borrar, pero se pierde historial y no corren los triggers.
 
-## Consecuencias
-Cuando un borrado falla por RESTRICT (error 1451), los ABM tienen que mostrar un mensaje claro.
-MySQL no deja usar en un CHECK una columna que está en una FK con CASCADE. Por eso el CHECK de formato de la CI está
-solo en `jugador`.
-En el turno 01 probamos que `UPDATE jugador SET ci = ...` llega a todas las tablas (informe, sección 2.3).
+## Qué implica
+Cuando un borrado da error por RESTRICT (error 1451), el back tiene que mostrar un mensaje claro. Además, MySQL no deja
+poner un CHECK en una columna que tiene una FK con CASCADE, por eso el CHECK del formato de la CI está solo en `jugador`.

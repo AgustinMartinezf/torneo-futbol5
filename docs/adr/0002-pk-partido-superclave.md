@@ -1,24 +1,21 @@
-# ADR 0002 · PK de `partido` como en la letra, más `UNIQUE(id_partido)`
+# ADR 0002: PK de `partido` como en la letra, más `UNIQUE(id_partido)`
 
-Estado: aceptada. Turno 01.
+## El problema
+En la letra la PK de `partido` es `(id_partido, id_torneo)`. Pero `id_partido` es autoincremental, así que ya
+identifica al partido solo. Eso hace que `(id_partido, id_torneo)` sea una superclave y no una clave mínima.
 
-## Contexto
-En la letra, la PK de `partido` es `(id_partido, id_torneo)`. Pero `id_partido` es `AUTO_INCREMENT` y ya identifica
-al partido sin ayuda, así que `(id_partido, id_torneo)` es una superclave no mínima.
+Además, `planilla_partido`, `gol` y `tarjeta` solo tienen `id_partido`. Cuando quisimos crear la FK hacia
+`partido(id_partido)`, MySQL 8.4 no nos dejó, porque por defecto (`restrict_fk_on_non_standard_key = ON`) una FK tiene
+que apuntar a una PK o a un UNIQUE completo, no a una parte de una PK compuesta.
 
-`planilla_partido`, `gol` y `tarjeta` solo tienen `id_partido`, y su FK apunta a `partido(id_partido)`. En MySQL 8.4
-la variable `restrict_fk_on_non_standard_key` viene en `ON`: una FK solo puede apuntar a una PRIMARY KEY o a un UNIQUE
-completo, nunca al prefijo de una clave compuesta. Sin un índice único exacto sobre `id_partido`, la FK no se puede crear.
+## Qué hicimos
+Dejamos la PK `(id_partido, id_torneo)` como pide la letra y agregamos `UNIQUE(id_partido)` para que las otras tablas
+puedan apuntarle.
 
-## Decisión
-Dejamos `pk_partido PRIMARY KEY (id_partido, id_torneo)` como pide la letra y agregamos `uq_partido_id UNIQUE (id_partido)`
-para que las tablas hijas tengan a qué apuntar.
+## Qué descartamos y por qué
+Poner la PK solo en `id_partido`. Sería lo más correcto en teoría, pero preferimos no cambiar la PK de la letra. Lo
+dejamos anotado en el informe como mejora que pensamos y no hicimos.
 
-## Alternativa considerada y no implementada
-`PRIMARY KEY (id_partido)` con `UNIQUE (id_partido, id_torneo)`. En teoría es más correcta, porque la PK sería una
-clave candidata mínima. No la usamos para respetar el modelo de la letra, pero queda anotada como mejora considerada
-en el informe (sección 2.3).
-
-## Consecuencias
-Hay dos índices únicos que empiezan por `id_partido`, con un costo de espacio mínimo. El backend identifica un partido
-solo con `id_partido`.
+## Qué implica
+Quedan dos índices únicos que empiezan con `id_partido`, que no es un problema. En el back los partidos se buscan solo
+por `id_partido`.

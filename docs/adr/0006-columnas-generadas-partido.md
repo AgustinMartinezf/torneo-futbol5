@@ -1,36 +1,30 @@
-# ADR 0006 · Columnas generadas y UNIQUE en `partido`
+# ADR 0006: Columnas generadas en `partido` para la cancha y los cruces
 
-Estado: aceptada. Turno 01.
+## El problema
+Hay dos reglas de la letra que dependen del estado del partido:
+1. Una cancha no puede tener dos partidos el mismo día y turno. Pero si un partido se canceló o se postergó, la cancha
+   tendría que quedar libre.
+2. Dos equipos no se pueden enfrentar dos veces en el torneo, salvo que el partido anterior se haya cancelado. Y A
+   contra B es lo mismo que B contra A.
 
-## Contexto
-Dos reglas de programación dependen del estado del partido.
+Un UNIQUE normal no puede tener en cuenta el estado, y MySQL no tiene UNIQUE con WHERE.
 
-La primera: una cancha no puede tener más de un partido el mismo día y turno. Un partido cancelado o postergado no
-debería seguir ocupando la cancha.
+## Qué hicimos
+Agregamos columnas generadas que quedan en NULL cuando el partido no tiene que contar. En un UNIQUE de MySQL los NULL no
+se comparan entre sí, así que esas filas no chocan con nada.
+- `ocupa_cancha` vale 1 si el partido está `programado` o `jugado`, y NULL si no. Va en
+  `UNIQUE(nombre_cancha, id_complejo, dia, id_turno, ocupa_cancha)`.
+- `equipo_menor` y `equipo_mayor` guardan el id más chico y el más grande de los dos equipos (con LEAST y GREATEST),
+  así A-B y B-A quedan iguales. Si el partido está `cancelado` valen NULL. Van en
+  `UNIQUE(id_torneo, equipo_menor, equipo_mayor)`.
 
-La segunda: un equipo no puede enfrentar a un rival con el que ya tiene partido en la edición, salvo que ese partido se
-haya cancelado. Además, el cruce A-B es el mismo que B-A.
+Un partido `postergado` libera la cancha, pero el cruce sigue contando, porque la letra solo habla de cancelados.
 
-Un `UNIQUE` común no puede mirar el estado, y MySQL no tiene índices parciales (con `WHERE`).
+## Qué descartamos y por qué
+Hacerlo con triggers que busquen en la tabla antes de insertar. Había que hacer uno para INSERT y otro para UPDATE, y
+con el UNIQUE la base ya lo controla sola.
 
-## Decisión
-Usamos columnas generadas `STORED` que valen `NULL` cuando la fila no tiene que competir. En un índice UNIQUE de MySQL
-los NULL no chocan entre sí.
-
-`ocupa_cancha = IF(estado IN ('programado','jugado'), 1, NULL)` entra en
-`UNIQUE (nombre_cancha, id_complejo, dia, id_turno, ocupa_cancha)`.
-
-`equipo_menor = IF(estado <> 'cancelado', LEAST(local, visitante), NULL)` y `equipo_mayor`, igual pero con `GREATEST`,
-entran en `UNIQUE (id_torneo, equipo_menor, equipo_mayor)`. LEAST y GREATEST hacen que A-B y B-A den el mismo par.
-
-Un partido `postergado` libera la cancha pero sigue contando para el cruce, porque la letra solo exceptúa a los cancelados.
-
-## Alternativa descartada
-Triggers `BEFORE INSERT/UPDATE` que consulten la tabla. Funcionan, pero hay que escribirlos dos veces (para INSERT y
-para UPDATE) y pueden fallar con dos transacciones concurrentes. El índice UNIQUE es atómico.
-
-## Consecuencias
-Las columnas generadas no se insertan: el backend tiene que nombrar las columnas en el INSERT.
-Las FK sobre las columnas base de una columna generada no pueden usar CASCADE. Las de equipos son RESTRICT, así que no hay problema.
-La regla "un equipo no juega más de un partido en la misma fecha" no se puede declarar así, porque el equipo puede
-aparecer como local en un partido y como visitante en otro. Va con un trigger en el turno 07.
+## Qué implica
+Las columnas generadas no se pueden insertar, así que en el back hay que poner los nombres de las columnas en el
+INSERT. La regla de que un equipo no juegue dos partidos en la misma fecha no sale con esto (el equipo puede ser local
+en uno y visitante en otro), así que va con un trigger en el ABM de partidos.

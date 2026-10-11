@@ -3,11 +3,11 @@
 ## 1. Introducción
 
 ## 2. Modelo de datos
-El esquema está en [`db/init/01_schema.sql`](../db/init/01_schema.sql) (MySQL 8.4, InnoDB, utf8mb4).
-Cada decisión de diseño tiene su ADR en [`docs/adr/`](adr/README.md), y los supuestos están en [`supuestos.md`](supuestos.md).
+El script de la base está en [`db/init/01_schema.sql`](../db/init/01_schema.sql). Las decisiones que tomamos están
+explicadas una por una en [`docs/adr/`](adr/README.md), y lo que tuvimos que suponer está en [`supuestos.md`](supuestos.md).
 
 ### 2.1 Diagrama entidad-relación
-El diagrama está en [`der/der.md`](der/der.md), en Mermaid, y sale del script.
+El diagrama está en [`der/der.md`](der/der.md). Lo hicimos con Mermaid a partir del script.
 
 ### 2.2 Modelo relacional
 Para cada tabla se indica la PK, las FK con su destino, los UNIQUE (UQ) y los CHECK (CK). Todas las columnas son
@@ -31,67 +31,62 @@ aclaran.
 
 ### 2.3 Mejoras implementadas o consideradas sobre el modelo propuesto
 
-#### Implementadas
-| Mejora | Motivo | ADR |
-|---|---|---|
-| FK compuesta `(id_equipo, id_torneo)` del plantel a `equipo`, más `UNIQUE(ci_jugador, id_torneo)` | La base controla la redundancia de `id_torneo`, y la regla de un jugador en un solo equipo por edición queda garantizada sin triggers. | 0003 |
-| FK compuestas de `partido` a `equipo` que incluyen `id_torneo` | Los dos equipos del partido son de su edición. | 0005 |
-| FK del capitán al plantel por `(id_equipo, ci_capitan)` | El capitán tiene que jugar en su propio equipo, no alcanza con que sea jugador. | 0004 |
-| FK de la planilla al plantel, y de gol y tarjeta a la planilla | En la planilla solo hay jugadores del plantel, y solo convierten o reciben tarjeta los que están en la planilla. | 0005 |
-| FK de la sanción al plantel por `(ci_jugador, id_torneo)` | Solo se sanciona a inscriptos, y el equipo del sancionado se obtiene con un JOIN directo. | 0005 |
-| Columnas generadas con UNIQUE en `partido` | Un índice controla la cancha ocupada y el cruce repetido, teniendo en cuenta el estado del partido. | 0006 |
-| Atributo `id_tarjeta` en `sancion_jugador` | Queda registrada la tarjeta que originó cada sanción automática. | 0010 |
-| `UNIQUE(anio, semestre)` en `torneo` | Una edición por semestre. | |
-| `UNIQUE(id_equipo, numero_camiseta)`, `UNIQUE(email)` y UNIQUE en los nombres | La letra no los prohíbe de forma explícita, pero los duplicados no tienen sentido. | |
-| CHECK de dominio: minutos de 1 a 60, turnos de 1 h entre 18 y 23, camiseta de 1 a 99, CI y correos | Validación en la capa de base de datos. | 0009 |
-| CHECK de largo sobre el hash de la contraseña | No se puede guardar una contraseña en texto plano. | 0008 |
-| El resultado del partido no se guarda | Sale de los goles. Si se guardara, podría no coincidir con ellos. | |
+#### Mejoras que hicimos
+1. En `equipo_jugador_torneo` dejamos el `id_torneo` aunque se repite con el de `equipo`, pero le pusimos una FK compuesta `(id_equipo, id_torneo)` contra `equipo` para que no pueda quedar distinto. Con eso pudimos poner `UNIQUE(ci_jugador, id_torneo)`, y así un jugador no puede estar en dos equipos del mismo torneo.
+2. En `partido` hicimos lo mismo para los dos equipos: las FK incluyen el `id_torneo`, entonces no se puede armar un partido con un equipo de otra edición.
+3. La FK del capitán apunta al plantel del equipo y no a `jugador`, para que el capitán sea sí o sí de su equipo. Puede quedar en NULL mientras se arma el plantel.
+4. La planilla apunta al plantel, y los goles y las tarjetas apuntan a la planilla. Así no se puede cargar un gol o una tarjeta de alguien que no está en la planilla.
+5. La sanción apunta al plantel con `(ci_jugador, id_torneo)`, así solo se sanciona a jugadores inscriptos en ese torneo. También le agregamos `id_tarjeta` para saber qué tarjeta generó cada sanción automática.
+6. En `partido` agregamos tres columnas generadas (`ocupa_cancha`, `equipo_menor` y `equipo_mayor`) que quedan en NULL según el estado del partido, y les pusimos UNIQUE. Como MySQL no compara los NULL en un UNIQUE, con esto una cancha no puede tener dos partidos el mismo día y turno, y dos equipos no se pueden enfrentar dos veces, salvo que el partido anterior se haya cancelado.
+7. Agregamos UNIQUE que la letra no tenía: un torneo por año y semestre, número de camiseta por equipo, email del jugador y los nombres.
+8. Agregamos CHECK para validar en la base: minutos de 1 a 60, turnos de una hora entre las 18 y las 23, camiseta de 1 a 99, formato de la CI y de los correos, y que la contraseña tenga por lo menos 60 caracteres (porque guardamos el hash).
+9. No guardamos el resultado del partido. Se calcula con los goles, así no puede pasar que el resultado no coincida con los goles cargados.
 
-#### Consideradas y no implementadas
-| Mejora | Por qué no |
-|---|---|
-| Usar `(id_partido)` como PK de `partido` en lugar de `(id_partido, id_torneo)`. La PK de la letra es una superclave no mínima, porque `id_partido` ya es único. | Respetamos la PK de la letra y agregamos `UNIQUE(id_partido)`, que MySQL 8.4 exige por `restrict_fk_on_non_standard_key` para las FK de las tablas hijas (ADR 0002). |
-| Sacar `id_torneo` de `equipo_jugador_torneo`, ya que depende de `id_equipo`. | La regla de un equipo por edición tendría que ir en un trigger. Preferimos la FK compuesta (ADR 0003). |
-| Tablas catálogo para tipos y estados. | Son dominios cerrados y atados a reglas, y alcanza con ENUM (ADR 0001). |
-| `ON DELETE CASCADE` de tarjeta a sanción. | No resuelve la acumulación de amarillas, y en MySQL los borrados en cascada no disparan triggers (ADR 0010). |
+#### Mejoras que pensamos pero no hicimos
+- La PK de `partido`. En la letra es `(id_partido, id_torneo)`, pero como `id_partido` es autoincremental ya alcanzaría solo con él, así que esa PK es una superclave y no una clave mínima. La dejamos como en la letra y agregamos `UNIQUE(id_partido)`, porque sin eso MySQL 8.4 no nos dejaba crear la FK desde `planilla_partido` (por la opción `restrict_fk_on_non_standard_key`).
+- Sacar `id_torneo` del plantel porque es redundante. No lo hicimos porque la regla de un equipo por torneo tendría que ir en un trigger.
+- Hacer tablas aparte para los tipos y estados en vez de ENUM. Son pocos valores y no cambian, así que nos alcanzó con ENUM.
+- Que al borrar una tarjeta se borre sola su sanción (`ON DELETE CASCADE`). No lo hicimos porque con la acumulación de amarillas no funciona bien y porque en MySQL los borrados en cascada no disparan triggers.
 
-Probamos la cascada de CI con un jugador que es capitán y tiene plantel, planilla, goles, tarjetas y sanción. Un solo
-`UPDATE jugador SET ci = ...` lleva la CI nueva a todas esas tablas.
+También probamos cambiar la CI de un jugador que era capitán y tenía goles, tarjetas y una sanción, y la CI nueva quedó en todas las tablas.
 
 ## 3. Decisiones de implementación
 ### 3.1 Arquitectura y tecnologías
 ### 3.2 Reglas de negocio: dónde se valida cada una (front / back / base de datos)
-Así quedó después del turno 01: qué garantiza el esquema y qué queda para triggers de los turnos siguientes. Cada turno completa lo que hace el front y el back.
+En esta tabla pusimos cada regla de la letra y cómo la controla la base. Las que se pueden hacer con constraints ya
+están en el script. Las otras las vamos a hacer con triggers cuando hagamos esa parte, y ahí también agregamos lo que
+valida el front y el back.
 
-| Regla de la letra | Base de datos | Turno |
+| Regla de la letra | Base de datos | Estado |
 |---|---|---|
-| Torneo con 3 estados; tipos de jugador; estados de partido; colores; motivos | ENUM | 01 |
-| Una edición por semestre | `uq_torneo_anio_semestre` | 01 |
-| Turnos de 1 h entre 18:00 y 23:00 | `chk_turno_*` | 01 |
-| Capitán es jugador de su plantel | `fk_equipo_capitan` | 01 |
-| Equipo con capitán al pasar a `en curso` | trigger | 06 |
-| Máx. 2 docentes/funcionarios por plantel | trigger | 06 |
-| Plantel de 5 a 10 jugadores | trigger | 06/07 |
-| Jugadores de la facultad del equipo | trigger | 06 |
-| Un jugador en un solo equipo por edición | `uq_ejt_jugador_torneo` + `fk_ejt_equipo` | 01 |
-| Planteles modificables solo en `inscripción` | trigger | 06 |
-| Partido: ambos equipos de la misma edición | `fk_partido_local`, `fk_partido_visitante` | 01 |
-| Partido: equipos con ≥ 5 jugadores | trigger | 07 |
-| No enfrentarse a sí mismo | `chk_partido_equipos_distintos` | 01 |
-| No repetir rival salvo cancelado | `uq_partido_cruce` | 01 |
-| Un partido por equipo en la misma fecha | trigger | 07 |
-| Cancha: un partido por día y turno | `uq_partido_cancha_turno` | 01 |
-| Planilla: jugador del plantel de su equipo | `fk_planilla_plantel` | 01 |
-| Planilla: equipo es local o visitante del partido | trigger | 08 |
-| Planilla: jugador no suspendido | trigger | 08/09 |
-| Goles/tarjetas solo de jugadores en la planilla | `fk_gol_planilla`, `fk_tarjeta_planilla` | 01 |
-| Resultado calculado desde los goles | no se almacena; vista | 01/08 |
-| `jugado` solo si el día y turno pasaron | trigger | 08 |
-| Partido jugado no se elimina | RESTRICT desde la planilla (parcial) + trigger | 01/07 |
-| Corrección del resultado solo en 48 h | trigger | 08 |
-| Sanción automática (roja / 3 amarillas) | trigger; `chk_sancion_origen` fija 1 fecha | 09 |
-| Suspendido no figura en planilla | trigger | 08/09 |
-| Roles administrador / planillero | ENUM en `login`; usuarios de BD | 01/02 |
+| Torneo con 3 estados; tipos de jugador; estados de partido; colores; motivos | ENUM | implementada |
+| Una edición por semestre | `uq_torneo_anio_semestre` | implementada |
+| Turnos de 1 h entre 18:00 y 23:00 | `chk_turno_*` | implementada |
+| Capitán es jugador de su plantel | `fk_equipo_capitan` | implementada |
+| Equipo con capitán al pasar a `en curso` | trigger | pendiente, ABM de equipos |
+| Máx. 2 docentes/funcionarios por plantel | trigger | pendiente, ABM de equipos |
+| Plantel de 5 a 10 jugadores | trigger | pendiente, ABM de equipos y de partidos |
+| Jugadores de la facultad del equipo | trigger | pendiente, ABM de equipos |
+| Un jugador en un solo equipo por edición | `uq_ejt_jugador_torneo` + `fk_ejt_equipo` | implementada |
+| Planteles modificables solo en `inscripción` | trigger | pendiente, ABM de equipos |
+| Partido: ambos equipos de la misma edición | `fk_partido_local`, `fk_partido_visitante` | implementada |
+| Partido: equipos con ≥ 5 jugadores | trigger | pendiente, ABM de partidos |
+| No enfrentarse a sí mismo | `chk_partido_equipos_distintos` | implementada |
+| No repetir rival salvo cancelado | `uq_partido_cruce` | implementada |
+| Un partido por equipo en la misma fecha | trigger | pendiente, ABM de partidos |
+| Cancha: un partido por día y turno | `uq_partido_cancha_turno` | implementada |
+| Planilla: jugador del plantel de su equipo | `fk_planilla_plantel` | implementada |
+| Planilla: equipo es local o visitante del partido | trigger | pendiente, planillas |
+| Planilla: jugador no suspendido | trigger | pendiente, planillas y sanciones |
+| Goles/tarjetas solo de jugadores en la planilla | `fk_gol_planilla`, `fk_tarjeta_planilla` | implementada |
+| Resultado calculado desde los goles | no se guarda; se calcula con una vista | esquema listo, vista pendiente |
+| `jugado` solo si el día y turno pasaron | trigger | pendiente, planillas |
+| Partido jugado no se elimina | RESTRICT desde la planilla + trigger | parcial, falta el trigger del ABM de partidos |
+| Corrección del resultado solo en 48 h | trigger | pendiente, planillas |
+| Sanción automática (roja / 3 amarillas) | trigger; `chk_sancion_origen` fija 1 fecha | parcial, falta el trigger de sanciones |
+| Suspendido no figura en planilla | trigger | pendiente, planillas y sanciones |
+| Roles administrador / planillero | ENUM en `login`; usuarios de BD con permisos | ENUM implementado, usuarios pendientes |
+
 ### 3.3 Seguridad (usuarios de base de datos y roles de la aplicación)
 
 ## 4. Reportes
