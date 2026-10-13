@@ -1,4 +1,4 @@
-# Informe — Sistema de Gestión del Torneo Interfacultades de Fútbol 5
+# Informe del Sistema de Gestión del Torneo Interfacultades de Fútbol 5
 
 ## 1. Introducción
 
@@ -14,12 +14,12 @@ Para cada tabla se indica la PK, las FK con su destino, los UNIQUE (UQ) y los CH
 NOT NULL salvo las que dicen NULL. Todas las FK son `ON DELETE RESTRICT`; las que además son `ON UPDATE CASCADE` lo
 aclaran.
 
-- `login` (correo, contrasena, rol). PK(correo). CK de formato del correo y de largo del hash (≥ 60). rol ∈ {administrador, planillero}.
+- `login` (correo, contrasena, rol). PK(correo). CK de formato del correo y de formato de hash bcrypt. rol ∈ {administrador, planillero}.
 - `facultad` (id_facultad, nombre). PK(id_facultad). UQ(nombre).
 - `jugador` (ci, nombre, apellido, email, fecha_nacimiento, id_facultad, tipo). PK(ci). FK id_facultad → facultad. UQ(email). CK de CI de 7 u 8 dígitos, formato del email y fecha_nacimiento ≥ 1900. tipo ∈ {grado, posgrado, docente, funcionario}.
 - `torneo` (id_torneo, nombre, anio, semestre, fecha_inicio, fecha_fin, estado). PK(id_torneo). UQ(anio, semestre) y UQ(nombre). CK semestre ∈ {1, 2}, fecha_fin > fecha_inicio y YEAR(fecha_inicio) = anio. estado ∈ {inscripción, en curso, finalizado}.
 - `equipo` (id_equipo, nombre, id_torneo, id_facultad, ci_capitan NULL). PK(id_equipo). FK id_torneo → torneo, id_facultad → facultad y (id_equipo, ci_capitan) → equipo_jugador_torneo(id_equipo, ci_jugador) con ON UPDATE CASCADE. UQ(nombre, id_torneo) y UQ(id_equipo, id_torneo).
-- `equipo_jugador_torneo` (id_equipo, ci_jugador, id_torneo, numero_camiseta). PK(id_equipo, ci_jugador, id_torneo). FK (id_equipo, id_torneo) → equipo y ci_jugador → jugador con ON UPDATE CASCADE. UQ(ci_jugador, id_torneo), UQ(id_equipo, numero_camiseta) y UQ(id_equipo, ci_jugador). CK de camiseta entre 1 y 99.
+- `equipo_jugador_torneo` (id_equipo, ci_jugador, id_torneo, numero_camiseta). PK(id_equipo, ci_jugador, id_torneo). FK (id_equipo, id_torneo) → equipo y ci_jugador → jugador con ON UPDATE CASCADE. UQ(ci_jugador, id_torneo), UQ(id_equipo, numero_camiseta) y UQ(id_equipo, ci_jugador). CK de camiseta entre 1 y 99. Trigger `trg_ejt_no_cambiar_equipo`, que no deja cambiar id_equipo ni id_torneo.
 - `complejo` (id_complejo, nombre, direccion, departamento). PK(id_complejo). UQ(nombre). departamento es uno de los 19 departamentos.
 - `cancha` (nombre_cancha, id_complejo, superficie, techada). PK(nombre_cancha, id_complejo). FK id_complejo → complejo. superficie ∈ {sintético, parquet}.
 - `turno` (id_turno, hora_inicio, hora_fin). PK(id_turno). UQ(hora_inicio). CK de hora_inicio entre 18:00 y 22:00 en hora en punto, y hora_fin = hora_inicio + 1 h.
@@ -39,7 +39,7 @@ aclaran.
 5. La sanción apunta al plantel con `(ci_jugador, id_torneo)`, así solo se sanciona a jugadores inscriptos en ese torneo. También le agregamos `id_tarjeta` para saber qué tarjeta generó cada sanción automática.
 6. En `partido` agregamos tres columnas generadas (`ocupa_cancha`, `equipo_menor` y `equipo_mayor`) que quedan en NULL según el estado del partido, y les pusimos UNIQUE. Como MySQL no compara los NULL en un UNIQUE, con esto una cancha no puede tener dos partidos el mismo día y turno, y dos equipos no se pueden enfrentar dos veces, salvo que el partido anterior se haya cancelado.
 7. Agregamos UNIQUE que la letra no tenía: un torneo por año y semestre, número de camiseta por equipo, email del jugador y los nombres.
-8. Agregamos CHECK para validar en la base: minutos de 1 a 60, turnos de una hora entre las 18 y las 23, camiseta de 1 a 99, formato de la CI y de los correos, y que la contraseña tenga por lo menos 60 caracteres (porque guardamos el hash).
+8. Agregamos CHECK para validar en la base: minutos de 1 a 60, turnos de una hora entre las 18 y las 23, camiseta de 1 a 99, formato de la CI y de los correos, y que la contraseña tenga el formato de un hash bcrypt (porque guardamos el hash).
 9. No guardamos el resultado del partido. Se calcula con los goles, así no puede pasar que el resultado no coincida con los goles cargados.
 
 #### Mejoras que pensamos pero no hicimos
@@ -49,6 +49,10 @@ aclaran.
 - Que al borrar una tarjeta se borre sola su sanción (`ON DELETE CASCADE`). No lo hicimos porque con la acumulación de amarillas no funciona bien y porque en MySQL los borrados en cascada no disparan triggers.
 
 También probamos cambiar la CI de un jugador que era capitán y tenía goles, tarjetas y una sanción, y la CI nueva quedó en todas las tablas.
+
+Revisando el CASCADE nos dimos cuenta de que en las FK compuestas hacia el plantel también arrastra `id_equipo`. Si se
+movía a un jugador de equipo con un UPDATE, sus planillas viejas pasaban al equipo nuevo sin dar error. Lo cerramos con
+un trigger que no deja cambiar el equipo de una fila del plantel (ADR 0007).
 
 ## 3. Decisiones de implementación
 ### 3.1 Arquitectura y tecnologías
@@ -68,6 +72,7 @@ valida el front y el back.
 | Plantel de 5 a 10 jugadores | trigger | pendiente, ABM de equipos y de partidos |
 | Jugadores de la facultad del equipo | trigger | pendiente, ABM de equipos |
 | Un jugador en un solo equipo por edición | `uq_ejt_jugador_torneo` + `fk_ejt_equipo` | implementada |
+| Un jugador no se cambia de equipo con un UPDATE (se saca y se inscribe de nuevo) | `trg_ejt_no_cambiar_equipo` | implementada |
 | Planteles modificables solo en `inscripción` | trigger | pendiente, ABM de equipos |
 | Partido: ambos equipos de la misma edición | `fk_partido_local`, `fk_partido_visitante` | implementada |
 | Partido: equipos con ≥ 5 jugadores | trigger | pendiente, ABM de partidos |
@@ -85,9 +90,23 @@ valida el front y el back.
 | Corrección del resultado solo en 48 h | trigger | pendiente, planillas |
 | Sanción automática (roja / 3 amarillas) | trigger; `chk_sancion_origen` fija 1 fecha | parcial, falta el trigger de sanciones |
 | Suspendido no figura en planilla | trigger | pendiente, planillas y sanciones |
-| Roles administrador / planillero | ENUM en `login`; usuarios de BD con permisos | ENUM implementado, usuarios pendientes |
+| Roles administrador / planillero | ENUM en `login`; usuarios de BD `app_admin` y `app_planillero` | implementada |
 
 ### 3.3 Seguridad (usuarios de base de datos y roles de la aplicación)
+La seguridad la pusimos en dos lugares. En la aplicación, cada cuenta de `login` tiene un rol (administrador o
+planillero) y la contraseña se guarda como hash bcrypt. En la base creamos un usuario de MySQL por rol, y el backend usa
+la conexión del rol de quien inició sesión. Así, aunque el back tuviera un error, la base no deja que un planillero
+haga algo que no le corresponde.
+
+- `app_admin` puede consultar, insertar, modificar y borrar datos en todas las tablas del esquema. No puede crear ni
+  modificar tablas, ni dar permisos a otros usuarios.
+- `app_planillero` puede consultar las tablas que necesita para cargar una planilla: facultades, jugadores, torneos,
+  equipos, planteles, complejos, canchas, turnos, partidos y sanciones. Puede insertar, modificar y borrar en
+  `planilla_partido`, `gol` y `tarjeta`. En `partido` solo puede modificar la columna `estado`. No puede leer `login`.
+
+Los permisos están en [`db/init/02_usuarios.sql`](../db/init/02_usuarios.sql). Los permisos de MySQL no pueden limitar a
+qué valor se cambia una columna, así que qué estados puede poner el planillero en un partido lo controlamos con un
+trigger en el registro de planillas.
 
 ## 4. Reportes
 ### 4.1 Consultas pedidas

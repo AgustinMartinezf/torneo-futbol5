@@ -8,8 +8,11 @@ administradores y los planilleros, no los jugadores.
 `login` no tiene FK. La PK es `correo`, `contrasena` es VARCHAR(255) y `rol` es un ENUM con `administrador` y
 `planillero`.
 
-En `contrasena` guardamos el hash (bcrypt), no la contraseña. Un hash de bcrypt tiene 60 caracteres, así que pusimos un
-CHECK de que tenga por lo menos 60. Si alguien guarda una contraseña en texto plano por error, la base no la acepta.
+En `contrasena` guardamos el hash (bcrypt), no la contraseña. Un hash de bcrypt tiene siempre la misma forma: empieza
+con `$2a$`, `$2b$` o `$2y$`, sigue el costo en dos dígitos y otro `$`, y después 53 caracteres de sal y hash. Pusimos un
+CHECK con una expresión regular que pide ese formato. Al principio solo pedíamos que tuviera por lo menos 60 caracteres,
+pero eso dejaba pasar una contraseña en claro larga. Con el formato, si alguien guarda una contraseña en texto plano
+por error, la base no la acepta.
 También hay un CHECK para el formato del correo.
 
 La columna se llama `contrasena` sin ñ para no tener problemas con caracteres raros en el SQL.

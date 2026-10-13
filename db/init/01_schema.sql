@@ -7,7 +7,10 @@
 -- reciba errores que se puedan leer.
 -- Todas las FK son ON DELETE RESTRICT. ON UPDATE CASCADE solo se usa hacia
 -- claves naturales: jugador.ci y la clave de cancha (ADR 0007).
--- Las reglas que necesitan triggers van en scripts aparte, junto con la
+-- Ojo: cuando la FK es compuesta, como (id_equipo, ci_jugador) hacia el plantel,
+-- el CASCADE arrastra todas sus columnas y no solo la CI. Por eso hay un trigger
+-- que no deja cambiar id_equipo ni id_torneo en el plantel.
+-- Las demás reglas que necesitan triggers van en scripts aparte, junto con la
 -- funcionalidad que las usa (ver docs/informe.md, sección 3.2).
 --
 -- MySQL no deja usar en un CHECK una columna que está en una FK con CASCADE,
@@ -31,8 +34,10 @@ CREATE TABLE login (
     CONSTRAINT pk_login PRIMARY KEY (correo),
     CONSTRAINT chk_login_correo
         CHECK (REGEXP_LIKE(correo, '^[^@[:space:]]+@[^@[:space:]]+[.][^@[:space:]]+$')),
-    -- Un hash bcrypt tiene 60 caracteres. Si llega algo más corto, es una contraseña en claro.
-    CONSTRAINT chk_login_contrasena_hash CHECK (CHAR_LENGTH(contrasena) >= 60)
+    -- Pedimos el formato de bcrypt: $2a$, $2b$ o $2y$, el costo en dos dígitos, otro $
+    -- y 53 caracteres de sal y hash. Así no entra una contraseña en claro, aunque sea larga.
+    CONSTRAINT chk_login_contrasena_hash
+        CHECK (REGEXP_LIKE(contrasena, '^[$]2[aby][$][0-9]{2}[$][./A-Za-z0-9]{53}$', 'c'))
 ) ENGINE = InnoDB;
 
 
@@ -137,6 +142,24 @@ ALTER TABLE equipo
     ADD CONSTRAINT fk_equipo_capitan FOREIGN KEY (id_equipo, ci_capitan)
         REFERENCES equipo_jugador_torneo (id_equipo, ci_jugador)
         ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- Las FK del capitán y de la planilla son (id_equipo, ci_jugador) con ON UPDATE CASCADE
+-- para que el cambio de CI llegue a todos lados. Pero si alguien cambiara id_equipo con un
+-- UPDATE, las planillas viejas del jugador pasarían a decir que jugó para el equipo nuevo,
+-- sin ningún error. Por eso no dejamos cambiar id_equipo ni id_torneo: para mover a un
+-- jugador hay que sacarlo del plantel e inscribirlo de nuevo (ADR 0007).
+-- Las acciones en cascada de las FK no disparan triggers, así que el cambio de CI sigue andando.
+DELIMITER //
+CREATE TRIGGER trg_ejt_no_cambiar_equipo
+BEFORE UPDATE ON equipo_jugador_torneo
+FOR EACH ROW
+BEGIN
+    IF NEW.id_equipo <> OLD.id_equipo OR NEW.id_torneo <> OLD.id_torneo THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'No se puede cambiar el equipo de un jugador del plantel. Hay que sacarlo e inscribirlo de nuevo.';
+    END IF;
+END//
+DELIMITER ;
 
 
 CREATE TABLE complejo (
