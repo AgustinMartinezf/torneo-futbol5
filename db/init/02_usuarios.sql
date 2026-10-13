@@ -1,5 +1,4 @@
 -- Usuarios de base de datos con permisos diferenciados (administrador / planillero).
--- Se completa en el Turno 02.
 USE torneo_futbol5;
 
 -- Usamos las contraseñas de desarrollo de .env.example.

@@ -1,4 +1,4 @@
-# Torneo Interfacultades de Fútbol 5 — UCU
+# Torneo Interfacultades de Fútbol 5 (UCU)
 
 Trabajo obligatorio de **Base de Datos 1** (UCU, 2.º semestre 2026).
 Sistema para gestionar equipos, planteles, fixture, planillas de juego, sanciones y reportes del torneo.
@@ -13,7 +13,7 @@ Sistema para gestionar equipos, planteles, fixture, planillas de juego, sancione
 ## Cómo correrlo (Docker)
 
 ```bash
-cp .env.example .env        # completar contraseñas
+cp .env.example .env        # en desarrollo no cambiar las claves de MySQL (ver Usuarios de prueba)
 docker compose up --build
 ```
 
