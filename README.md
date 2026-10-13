@@ -61,8 +61,9 @@ Las cuentas de MySQL son distintas de las de la aplicación:
   tablas ni dar permisos.
 - `app_planillero`: usamos `DB_PLANILLERO_PASSWORD` de `.env.example`. Puede
   consultar los datos necesarios para cargar planillas, escribir en
-  `planilla_partido`, `gol` y `tarjeta`, y actualizar la columna `estado` de
-  `partido`. No puede leer `login` ni modificar jugadores, equipos o sanciones.
+  `planilla_partido`, `gol` y `tarjeta`, y marcar un partido como jugado con el
+  procedimiento `marcar_partido_jugado`. No puede modificar la tabla `partido`
+  directamente, leer `login` ni modificar jugadores, equipos o sanciones.
 
 Dejamos las contraseñas de desarrollo en `db/init/02_usuarios.sql`, iguales a
 `.env.example`. Elegimos un SQL fijo para que lo ejecute directamente el init

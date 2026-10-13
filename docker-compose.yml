@@ -5,6 +5,8 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
+      # Hora de Uruguay para NOW(): se usa para saber si un partido ya se jugó.
+      TZ: America/Montevideo
     ports:
       - "3306:3306"
     volumes:
@@ -13,7 +15,9 @@ services:
       # Para re-ejecutarlos: docker compose down -v && docker compose up --build
       - ./db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      # Por TCP y no por socket: mientras corren los scripts de init el servidor
+      # no acepta conexiones TCP, así que no da healthy antes de que existan los usuarios.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 20
