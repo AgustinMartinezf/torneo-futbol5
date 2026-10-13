@@ -1,0 +1,32 @@
+db/init/02_usuarios.sql
+Agregamos app_admin y app_planillero con las claves de desarrollo de .env.example. El administrador tiene CRUD del esquema sin DDL. El planillero lee el dominio excepto login, escribe planillas, goles y tarjetas y actualiza solo estado del partido. Conservamos los comentarios anteriores.
+
+db/init/03_datos_maestros.sql
+Agregamos cuatro facultades, los cinco turnos, dos complejos con dos canchas cada uno, un torneo en inscripción, 52 jugadores y dos logins con bcrypt costo 12. Los jugadores tienen CI con dígito verificador válido y están repartidos entre las cuatro facultades y los cuatro tipos. Conservamos los comentarios anteriores.
+
+README.md
+Agregamos usuarios de prueba, explicación de permisos, decisión de usar SQL fijo, cambio de contraseñas y resumen de los datos base.
+
+docs/bitacora.md
+Agregamos la entrada de Facundo del 13/10 sobre usuarios de BD y datos maestros.
+
+.ai/PROGRESS.md
+Agregamos el handoff con decisiones, credenciales de prueba, verificación y pendientes para quien siga.
+
+borrador.txt
+Agregamos este resumen de archivos y pruebas.
+
+Main
+No agregamos nada al main. La consigna de esta fecha solo requiere SQL, datos y documentación. No agregamos endpoints ni pantallas.
+
+Tests
+Ejecutamos los tres scripts en una base temporal aislada con MySQL 26.7. Docker no está disponible en este entorno. No agregamos archivos de tests al proyecto.
+1. Aprobado: scripts sin errores, cantidades esperadas, distribución por facultad y tipo, CI y hashes bcrypt con clave correcta e incorrecta.
+2. Aprobado: administrador puede consultar, insertar, modificar y borrar; SHOW GRANTS confirma CRUD sin permisos globales ni GRANT OPTION.
+3. Aprobado: planillero no puede insertar jugadores ni leer login; administrador no puede crear tablas.
+4. Pendiente: registro de gol válido y CRUD de planilla, gol y tarjeta. La FK fk_planilla_partido rechaza el partido existente también como root en MySQL 26.7. Repetir en MySQL 8.4 sin modificar el esquema ni desactivar FK.
+5. Aprobado: gol sin planilla falla por FK; planillero puede cambiar estado pero no día ni borrar partidos.
+Los equipos, planteles y partido usados para verificar se eliminaron de la base temporal.
+
+Para completar la verificación
+En una base de prueba con Docker y las claves de desarrollo de .env.example, ejecutar docker compose down -v y luego docker compose up --build. Esto elimina los datos del volumen de prueba. Verificar que los scripts cargan en MySQL 8.4. Como administrador preparar dos equipos con sus planteles y un partido, y como planillero insertar el jugador en planilla_partido y luego un gol para ese mismo partido y jugador. El INSERT en gol debe funcionar; un INSERT en jugador debe fallar por permisos. También falta comprobar /health y la pantalla inicial con los servicios levantados.
