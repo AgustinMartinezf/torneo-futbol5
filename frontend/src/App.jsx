@@ -1,19 +1,27 @@
-import { useEffect, useState } from 'react'
-import { api } from './api.js'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import Layout from './components/Layout.jsx'
+import RutaProtegida from './components/RutaProtegida.jsx'
+import { SECCIONES } from './menu.js'
+import InicioPage from './pages/InicioPage.jsx'
+import LoginPage from './pages/LoginPage.jsx'
+import PendientePage from './pages/PendientePage.jsx'
 
 export default function App() {
-  const [estado, setEstado] = useState('verificando...')
-
-  useEffect(() => {
-    api('/health')
-      .then((d) => setEstado(d.status))
-      .catch(() => setEstado('sin conexión con la API'))
-  }, [])
-
   return (
-    <main style={{ fontFamily: 'system-ui', padding: 24 }}>
-      <h1>Torneo Interfacultades de Fútbol 5</h1>
-      <p>Estado de la API: {estado}</p>
-    </main>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route element={<RutaProtegida />}>
+        <Route element={<Layout />}>
+          <Route index element={<InicioPage />} />
+          {/* Cada funcionalidad reemplaza su PendientePage por la página real. */}
+          {SECCIONES.map((s) => (
+            <Route key={s.ruta} element={<RutaProtegida roles={s.roles} />}>
+              <Route path={s.ruta} element={<PendientePage titulo={s.texto} />} />
+            </Route>
+          ))}
+        </Route>
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }

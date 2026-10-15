@@ -1,0 +1,195 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  color: #222;
+  background-color: #f5f5f5;
+}
+
+h1 {
+  font-size: 24px;
+  margin-top: 0;
+}
+
+h2 {
+  font-size: 18px;
+}
+
+button {
+  padding: 8px 14px;
+  border: 1px solid #1f6f3f;
+  border-radius: 4px;
+  background-color: #1f6f3f;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+button.secundario {
+  background-color: white;
+  color: #1f6f3f;
+}
+
+button.peligro {
+  background-color: #b3261e;
+  border-color: #b3261e;
+}
+
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.menu {
+  width: 220px;
+  padding: 16px;
+  background-color: #1f6f3f;
+  color: white;
+  display: flex;
+  flex-direction: column;
+}
+
+.menu h2 {
+  margin-top: 0;
+}
+
+.menu nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.menu nav a {
+  padding: 6px 8px;
+  border-radius: 4px;
+  color: white;
+  text-decoration: none;
+}
+
+.menu nav a:hover {
+  background-color: #2c8a52;
+}
+
+.menu-usuario {
+  margin-top: auto;
+  font-size: 14px;
+}
+
+.menu-usuario p {
+  margin: 4px 0;
+  word-break: break-all;
+}
+
+.menu-usuario .rol {
+  color: #cfe8d8;
+}
+
+.menu-usuario button {
+  margin-top: 8px;
+  background-color: white;
+  color: #1f6f3f;
+}
+
+.contenido {
+  flex: 1;
+  padding: 24px;
+}
+
+.pagina-login {
+  max-width: 360px;
+  margin: 60px auto;
+  padding: 24px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background-color: white;
+}
+
+.pagina-login h1 {
+  font-size: 20px;
+}
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 480px;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.campo input,
+.campo select {
+  padding: 8px;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.campo input[aria-invalid='true'] {
+  border-color: #b3261e;
+}
+
+.error,
+.error-campo {
+  color: #b3261e;
+  margin: 0;
+}
+
+.error-campo {
+  font-size: 13px;
+}
+
+.botones {
+  display: flex;
+  gap: 8px;
+}
+
+.tabla {
+  border-collapse: collapse;
+  width: 100%;
+  background-color: white;
+}
+
+.tabla th,
+.tabla td {
+  padding: 8px;
+  border: 1px solid #ddd;
+  text-align: left;
+}
+
+.tabla th {
+  background-color: #eee;
+}
+
+.tabla .acciones {
+  display: flex;
+  gap: 6px;
+}
+
+.vacio {
+  color: #666;
+}
+
+.fondo-modal {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  max-width: 400px;
+  padding: 20px;
+  border-radius: 6px;
+  background-color: white;
+}
