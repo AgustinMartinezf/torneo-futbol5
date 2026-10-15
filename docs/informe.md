@@ -59,6 +59,15 @@ un trigger que no deja cambiar el equipo de una fila del plantel (ADR 0007).
 El servidor de MySQL corre con la hora de Uruguay (`TZ: America/Montevideo` en `docker-compose.yml`). Lo necesitamos
 porque las reglas que dependen de la hora, como que un partido solo se marca como jugado si ya terminó su turno, usan
 `NOW()` en la base.
+
+El backend está separado en tres partes: `routers/` recibe los pedidos HTTP, `schemas/` tiene los modelos de Pydantic
+que validan los datos de entrada y `repos/` tiene las consultas SQL, escritas a mano y siempre con parámetros (`%s`).
+
+Cuando la base rechaza algo, el error llega con el nombre de la constraint (por ejemplo `uq_partido_cruce`) o, si viene
+de un trigger o procedimiento, con un `SIGNAL SQLSTATE '45000'` que ya trae el mensaje en español. En `app/errores.py`
+tenemos un manejo común que transforma esos errores en respuestas con un `detail` que entiende el usuario: 400 para datos
+inválidos, 409 para duplicados o datos que están en uso y 403 si el usuario de MySQL no tiene permiso. Los errores de
+validación de Pydantic también los pasamos a un mensaje en español. El front muestra ese `detail` tal cual.
 ### 3.2 Reglas de negocio: dónde se valida cada una (front / back / base de datos)
 En esta tabla pusimos cada regla de la letra y cómo la controla la base. Las que se pueden hacer con constraints ya
 están en el script. Las otras las vamos a hacer con triggers cuando hagamos esa parte, y ahí también agregamos lo que
@@ -115,6 +124,17 @@ de quien lo creó, y solo pasa un partido de `programado` a `jugado` si ya termi
 
 Los permisos están en [`db/init/02_usuarios.sql`](../db/init/02_usuarios.sql). Como al planillero le damos permisos
 tabla por tabla, cada vista o procedimiento nuevo que tenga que usar lleva su propio `GRANT`.
+
+Para iniciar sesión, el front manda correo y contraseña a `POST /auth/login`. El back busca la cuenta en `login` con la
+conexión de `app_admin`, porque todavía no sabe el rol y `app_planillero` no puede leer esa tabla. Compara la contraseña
+con el hash usando bcrypt y, si coincide, devuelve un token JWT firmado con el correo y el rol, que vence a las dos horas
+(`JWT_EXPIRES_MINUTES`). Si el correo no existe o la contraseña está mal respondemos lo mismo, "Correo o contraseña
+incorrectos", para no dar pistas de qué cuentas existen.
+
+En cada pedido el back valida el token y abre la conexión de MySQL del rol que viene en él. Los endpoints del
+administrador además piden ese rol, y si entra un planillero responden 403. Sin token, o con uno vencido o adulterado,
+responden 401, y el front borra la sesión y vuelve a la pantalla de ingreso. El menú del front solo muestra las secciones
+del rol, pero eso es comodidad: quien controla los permisos es el back, y por debajo la base.
 
 ## 4. Reportes
 ### 4.1 Consultas pedidas
