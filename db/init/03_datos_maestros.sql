@@ -29,7 +29,12 @@ INSERT INTO cancha (nombre_cancha, id_complejo, superficie, techada) VALUES
     ('Cancha 2', 2, 'parquet', 1);
 
 INSERT INTO torneo (id_torneo, nombre, anio, semestre, fecha_inicio, fecha_fin, estado) VALUES
-    (1, 'Interfacultades 2026 segundo semestre', 2026, 2, '2026-10-19', '2026-11-30', 'inscripción');
+    (1, 'Interfacultades 2026 segundo semestre', 2026, 2, '2026-10-19', '2026-11-30', 'inscripción'),
+    (2, 'Interfacultades 2026 primer semestre', 2026, 1, '2026-03-02', '2026-06-30', 'inscripción');
+-- La edición 2 tiene fechas pasadas para poder cargar partidos jugados, planillas y
+-- sanciones y probar los reportes. Arranca en inscripción porque los planteles solo
+-- se cargan en esa etapa. Cuando tenga equipos, partidos y planillas, al final de
+-- este archivo se pasa a 'finalizado'.
 
 -- Guardamos hashes bcrypt con costo 12. Las claves de prueba están en el README.
 INSERT INTO login (correo, contrasena, rol) VALUES

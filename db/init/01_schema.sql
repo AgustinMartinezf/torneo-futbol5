@@ -254,6 +254,42 @@ CREATE TABLE partido (
 ) ENGINE = InnoDB;
 
 
+-- El planillero no tiene permiso para modificar partido. Para marcar un partido
+-- como jugado usa este procedimiento, que corre con los permisos de quien lo creó
+-- (SQL SECURITY DEFINER). Solo deja pasar de 'programado' a 'jugado', y solo si ya
+-- terminó el turno de ese día. Así el planillero no puede cancelar ni postergar
+-- partidos, que libera la cancha y el cruce.
+-- NOW() usa la hora del servidor; en Docker la fijamos en America/Montevideo.
+DELIMITER //
+CREATE PROCEDURE marcar_partido_jugado(IN p_id_partido INT)
+    MODIFIES SQL DATA
+    SQL SECURITY DEFINER
+BEGIN
+    DECLARE v_estado VARCHAR(20) DEFAULT NULL;
+    DECLARE v_fin DATETIME DEFAULT NULL;
+
+    SELECT p.estado, TIMESTAMP(p.dia, t.hora_fin)
+      INTO v_estado, v_fin
+      FROM partido p
+      JOIN turno t ON t.id_turno = p.id_turno
+     WHERE p.id_partido = p_id_partido
+       FOR UPDATE;
+
+    IF v_estado IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El partido no existe.';
+    ELSEIF v_estado <> 'programado' THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Solo se puede marcar como jugado un partido programado.';
+    ELSEIF v_fin > NOW() THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'El partido todavía no se jugó: su turno no terminó.';
+    END IF;
+
+    UPDATE partido SET estado = 'jugado' WHERE id_partido = p_id_partido;
+END//
+DELIMITER ;
+
+
 -- La FK compuesta al plantel asegura que el jugador sea del plantel del equipo
 -- que se indica. No hay FK directa a jugador: ya está implícita y además
 -- abriría un segundo camino de cascada (ADR 0005).

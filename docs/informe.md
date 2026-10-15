@@ -56,6 +56,9 @@ un trigger que no deja cambiar el equipo de una fila del plantel (ADR 0007).
 
 ## 3. Decisiones de implementación
 ### 3.1 Arquitectura y tecnologías
+El servidor de MySQL corre con la hora de Uruguay (`TZ: America/Montevideo` en `docker-compose.yml`). Lo necesitamos
+porque las reglas que dependen de la hora, como que un partido solo se marca como jugado si ya terminó su turno, usan
+`NOW()` en la base.
 ### 3.2 Reglas de negocio: dónde se valida cada una (front / back / base de datos)
 En esta tabla pusimos cada regla de la letra y cómo la controla la base. Las que se pueden hacer con constraints ya
 están en el script. Las otras las vamos a hacer con triggers cuando hagamos esa parte, y ahí también agregamos lo que
@@ -85,7 +88,7 @@ valida el front y el back.
 | Planilla: jugador no suspendido | trigger | pendiente, planillas y sanciones |
 | Goles/tarjetas solo de jugadores en la planilla | `fk_gol_planilla`, `fk_tarjeta_planilla` | implementada |
 | Resultado calculado desde los goles | no se guarda; se calcula con una vista | esquema listo, vista pendiente |
-| `jugado` solo si el día y turno pasaron | trigger | pendiente, planillas |
+| `jugado` solo si el día y turno pasaron | procedimiento `marcar_partido_jugado` (planillero) + trigger | parcial, falta el trigger para el administrador |
 | Partido jugado no se elimina | RESTRICT desde la planilla + trigger | parcial, falta el trigger del ABM de partidos |
 | Corrección del resultado solo en 48 h | trigger | pendiente, planillas |
 | Sanción automática (roja / 3 amarillas) | trigger; `chk_sancion_origen` fija 1 fecha | parcial, falta el trigger de sanciones |
@@ -102,11 +105,16 @@ haga algo que no le corresponde.
   modificar tablas, ni dar permisos a otros usuarios.
 - `app_planillero` puede consultar las tablas que necesita para cargar una planilla: facultades, jugadores, torneos,
   equipos, planteles, complejos, canchas, turnos, partidos y sanciones. Puede insertar, modificar y borrar en
-  `planilla_partido`, `gol` y `tarjeta`. En `partido` solo puede modificar la columna `estado`. No puede leer `login`.
+  `planilla_partido`, `gol` y `tarjeta`. No puede modificar `partido` ni leer `login`.
 
-Los permisos están en [`db/init/02_usuarios.sql`](../db/init/02_usuarios.sql). Los permisos de MySQL no pueden limitar a
-qué valor se cambia una columna, así que qué estados puede poner el planillero en un partido lo controlamos con un
-trigger en el registro de planillas.
+Para marcar un partido como jugado, el planillero usa el procedimiento `marcar_partido_jugado`. Al principio le dábamos
+permiso para modificar la columna `estado`, pero MySQL no deja limitar a qué valor se cambia, y así podía cancelar o
+postergar partidos, que libera la cancha y el cruce. El procedimiento es `SQL SECURITY DEFINER`: corre con los permisos
+de quien lo creó, y solo pasa un partido de `programado` a `jugado` si ya terminó su turno. Al planillero le damos
+`EXECUTE` sobre ese procedimiento y nada más sobre `partido`.
+
+Los permisos están en [`db/init/02_usuarios.sql`](../db/init/02_usuarios.sql). Como al planillero le damos permisos
+tabla por tabla, cada vista o procedimiento nuevo que tenga que usar lleva su propio `GRANT`.
 
 ## 4. Reportes
 ### 4.1 Consultas pedidas

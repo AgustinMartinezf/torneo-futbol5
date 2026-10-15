@@ -6,7 +6,7 @@ USE torneo_futbol5;
 CREATE USER 'app_admin'@'%' IDENTIFIED BY 'cambiar_admin';
 CREATE USER 'app_planillero'@'%' IDENTIFIED BY 'cambiar_planillero';
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON torneo_futbol5.* TO 'app_admin'@'%';
+GRANT SELECT, INSERT, UPDATE, DELETE, EXECUTE ON torneo_futbol5.* TO 'app_admin'@'%';
 
 GRANT SELECT ON torneo_futbol5.facultad TO 'app_planillero'@'%';
 GRANT SELECT ON torneo_futbol5.jugador TO 'app_planillero'@'%';
@@ -22,4 +22,9 @@ GRANT SELECT ON torneo_futbol5.sancion_jugador TO 'app_planillero'@'%';
 GRANT SELECT, INSERT, UPDATE, DELETE ON torneo_futbol5.planilla_partido TO 'app_planillero'@'%';
 GRANT SELECT, INSERT, UPDATE, DELETE ON torneo_futbol5.gol TO 'app_planillero'@'%';
 GRANT SELECT, INSERT, UPDATE, DELETE ON torneo_futbol5.tarjeta TO 'app_planillero'@'%';
-GRANT UPDATE (estado) ON torneo_futbol5.partido TO 'app_planillero'@'%';
+-- El planillero no modifica partido directamente: lo marca como jugado con el
+-- procedimiento, que solo permite pasar de programado a jugado.
+GRANT EXECUTE ON PROCEDURE torneo_futbol5.marcar_partido_jugado TO 'app_planillero'@'%';
+
+-- El planillero tiene permisos tabla por tabla. Cada vista o procedimiento nuevo
+-- que necesite usar lleva su propio GRANT acá.
