@@ -7,6 +7,10 @@ import os
 from contextlib import contextmanager
 
 import mysql.connector
+from fastapi import Depends
+
+from app.auth import usuario_actual
+from app.schemas.auth import Usuario
 
 _CREDENCIALES = {
     "administrador": (os.getenv("DB_ADMIN_USER"), os.getenv("DB_ADMIN_PASSWORD")),
@@ -28,3 +32,12 @@ def get_conn(rol: str = "administrador"):
         yield conn
     finally:
         conn.close()
+
+
+def conexion_del_usuario(usuario: Usuario = Depends(usuario_actual)):
+    """Dependencia de FastAPI: conexión con el usuario de MySQL del rol que viene en el token.
+
+    Si el endpoint no hace commit, al cerrar la conexión MySQL deshace los cambios.
+    """
+    with get_conn(usuario.rol) as conn:
+        yield conn

@@ -14,6 +14,14 @@ Sistema para gestionar equipos, planteles, fixture, planillas de juego, sancione
 
 ```bash
 cp .env.example .env        # en desarrollo no cambiar las claves de MySQL (ver Usuarios de prueba)
+```
+
+Antes de levantar los contenedores, generamos una clave aleatoria con
+`python -c "import secrets; print(secrets.token_urlsafe(32))"` y la ponemos en
+`JWT_SECRET` dentro de `.env`. La API exige al menos 32 bytes y no inicia con
+el valor vacío del ejemplo.
+
+```bash
 docker compose up --build
 ```
 
@@ -36,23 +44,27 @@ docker compose down -v && docker compose up --build
 
 ```
 db/init/         01_schema.sql · 02_usuarios.sql · 03_datos_maestros.sql
-backend/app/     API FastAPI (routers, validaciones, acceso a datos)
-frontend/src/    Aplicación React
+backend/app/     API FastAPI: routers/ (endpoints), schemas/ (validación), repos/ (SQL),
+                 auth.py (login y roles), errores.py (errores de MySQL a HTTP)
+frontend/src/    Aplicación React: pages/, components/, auth/ (sesión), api.js
 docs/            Informe, bitácora y diagrama entidad-relación
 ```
 
 ## Usuarios de prueba
 
-Las cuentas de la aplicación ya están cargadas en la tabla `login`. El formulario
-de ingreso se agrega junto con la autenticación.
+Las cuentas de la aplicación ya están cargadas en la tabla `login`. Para entrar,
+abrimos http://localhost:5173 e ingresamos con alguna de estas cuentas. El
+administrador ve todas las secciones del menú; el planillero solo ve Planillas.
 
 | Correo | Contraseña de prueba | Rol |
 |---|---|---|
 | admin@torneo.example | AdminPrueba2026! | administrador |
 | planillero@torneo.example | PlanilleroPrueba2026! | planillero |
 
-Guardamos las contraseñas como hashes bcrypt con costo 12 para que las pueda
-verificar el backend cuando agreguemos el login.
+Guardamos las contraseñas como hashes bcrypt con costo 12. El backend las
+verifica en `POST /auth/login` y devuelve un token JWT con el correo y el rol.
+Para probar la API desde `/docs`, hacemos login, copiamos el `token` y lo
+pegamos en el botón Authorize.
 
 Las cuentas de MySQL son distintas de las de la aplicación:
 
