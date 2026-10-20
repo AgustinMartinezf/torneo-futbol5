@@ -5,5 +5,5 @@ JWT_SECRET = os.getenv("JWT_SECRET", "")
 JWT_EXPIRES_MINUTES = int(os.getenv("JWT_EXPIRES_MINUTES", "120"))
 JWT_ALGORITMO = "HS256"
 
-if not JWT_SECRET:
-    raise RuntimeError("Falta la variable de entorno JWT_SECRET.")
+if len(JWT_SECRET.encode("utf-8")) < 32:
+    raise RuntimeError("JWT_SECRET debe tener al menos 32 bytes aleatorios. Configuralo en .env.")

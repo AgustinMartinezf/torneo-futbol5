@@ -131,6 +131,9 @@ con el hash usando bcrypt y, si coincide, devuelve un token JWT firmado con el c
 (`JWT_EXPIRES_MINUTES`). Si el correo no existe o la contraseña está mal respondemos lo mismo, "Correo o contraseña
 incorrectos", para no dar pistas de qué cuentas existen.
 
+Generamos una clave JWT aleatoria para cada instalación y la guardamos en `.env`, que no se sube al repositorio.
+La API no inicia si la clave tiene menos de 32 bytes.
+
 En cada pedido el back valida el token y abre la conexión de MySQL del rol que viene en él. Los endpoints del
 administrador además piden ese rol, y si entra un planillero responden 403. Sin token, o con uno vencido o adulterado,
 responden 401, y el front borra la sesión y vuelve a la pantalla de ingreso. El menú del front solo muestra las secciones

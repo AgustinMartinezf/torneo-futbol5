@@ -42,7 +42,12 @@ def usuario_actual(
     if credenciales is None:
         raise _no_autenticado("Tenés que iniciar sesión.")
     try:
-        datos = jwt.decode(credenciales.credentials, JWT_SECRET, algorithms=[JWT_ALGORITMO])
+        datos = jwt.decode(
+            credenciales.credentials,
+            JWT_SECRET,
+            algorithms=[JWT_ALGORITMO],
+            options={"require": ["sub", "rol", "exp"]},
+        )
     except jwt.ExpiredSignatureError:
         raise _no_autenticado("La sesión venció. Volvé a iniciar sesión.")
     except jwt.InvalidTokenError:

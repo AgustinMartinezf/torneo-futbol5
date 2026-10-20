@@ -14,6 +14,14 @@ Sistema para gestionar equipos, planteles, fixture, planillas de juego, sancione
 
 ```bash
 cp .env.example .env        # en desarrollo no cambiar las claves de MySQL (ver Usuarios de prueba)
+```
+
+Antes de levantar los contenedores, generamos una clave aleatoria con
+`python -c "import secrets; print(secrets.token_urlsafe(32))"` y la ponemos en
+`JWT_SECRET` dentro de `.env`. La API exige al menos 32 bytes y no inicia con
+el valor vacío del ejemplo.
+
+```bash
 docker compose up --build
 ```
 
