@@ -16,7 +16,7 @@ aclaran.
 
 - `login` (correo, contrasena, rol). PK(correo). CK de formato del correo y de formato de hash bcrypt. rol ∈ {administrador, planillero}.
 - `facultad` (id_facultad, nombre). PK(id_facultad). UQ(nombre).
-- `jugador` (ci, nombre, apellido, email, fecha_nacimiento, id_facultad, tipo). PK(ci). FK id_facultad → facultad. UQ(email). CK de CI de 7 u 8 dígitos, formato del email y fecha_nacimiento ≥ 1900. tipo ∈ {grado, posgrado, docente, funcionario}.
+- `jugador` (ci, nombre, apellido, email, fecha_nacimiento, id_facultad, tipo). PK(ci). FK id_facultad → facultad. UQ(email). CK de CI de 7 u 8 dígitos, formato del email y fecha_nacimiento ≥ 1900. Triggers de alta y edición para el dígito verificador de la CI y la edad entre 16 y 120 años. tipo ∈ {grado, posgrado, docente, funcionario}.
 - `torneo` (id_torneo, nombre, anio, semestre, fecha_inicio, fecha_fin, estado). PK(id_torneo). UQ(anio, semestre) y UQ(nombre). CK semestre ∈ {1, 2}, fecha_fin > fecha_inicio y YEAR(fecha_inicio) = anio. estado ∈ {inscripción, en curso, finalizado}.
 - `equipo` (id_equipo, nombre, id_torneo, id_facultad, ci_capitan NULL). PK(id_equipo). FK id_torneo → torneo, id_facultad → facultad y (id_equipo, ci_capitan) → equipo_jugador_torneo(id_equipo, ci_jugador) con ON UPDATE CASCADE. UQ(nombre, id_torneo) y UQ(id_equipo, id_torneo).
 - `equipo_jugador_torneo` (id_equipo, ci_jugador, id_torneo, numero_camiseta). PK(id_equipo, ci_jugador, id_torneo). FK (id_equipo, id_torneo) → equipo y ci_jugador → jugador con ON UPDATE CASCADE. UQ(ci_jugador, id_torneo), UQ(id_equipo, numero_camiseta) y UQ(id_equipo, ci_jugador). CK de camiseta entre 1 y 99. Trigger `trg_ejt_no_cambiar_equipo`, que no deja cambiar id_equipo ni id_torneo.
@@ -41,6 +41,7 @@ aclaran.
 7. Agregamos UNIQUE que la letra no tenía: un torneo por año y semestre, número de camiseta por equipo, email del jugador y los nombres.
 8. Agregamos CHECK para validar en la base: minutos de 1 a 60, turnos de una hora entre las 18 y las 23, camiseta de 1 a 99, formato de la CI y de los correos, y que la contraseña tenga el formato de un hash bcrypt (porque guardamos el hash).
 9. No guardamos el resultado del partido. Se calcula con los goles, así no puede pasar que el resultado no coincida con los goles cargados.
+10. Validamos el dígito verificador de la CI y una edad de 16 a 120 años en los triggers de `jugador`. El formulario y el back aplican las mismas reglas.
 
 #### Mejoras que pensamos pero no hicimos
 - La PK de `partido`. En la letra es `(id_partido, id_torneo)`, pero como `id_partido` es autoincremental ya alcanzaría solo con él, así que esa PK es una superclave y no una clave mínima. La dejamos como en la letra y agregamos `UNIQUE(id_partido)`, porque sin eso MySQL 8.4 no nos dejaba crear la FK desde `planilla_partido` (por la opción `restrict_fk_on_non_standard_key`).

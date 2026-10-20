@@ -23,6 +23,7 @@ están las preguntas que tenemos para el docente.
 | S-10 | En la sanción por acumulación, la tarjeta de origen (`id_tarjeta`) es la amarilla que completa las 3. | ADR 0010, sanciones automáticas |
 | S-11 | Mientras dura la inscripción, un equipo puede no tener capitán (`ci_capitan` en NULL). Lo exigimos cuando el torneo pasa a `en curso`. | ADR 0004, trigger del ABM de equipos |
 | S-12 | Las columnas `contraseña` y `dirección` de la letra las llamamos `contrasena` y `direccion`, sin ñ ni tilde, para no tener problemas en el SQL. Las demás se llaman igual que en la letra. | `login`, `complejo` |
+| S-13 | Tomamos entre 16 y 120 años como edad razonable para un jugador. | Formulario de jugadores, Pydantic y triggers de `jugador` |
 
 ## Preguntas para el docente
 1. (S-03) ¿Una facultad puede inscribir más de un equipo en la misma edición? Hoy el modelo lo permite.

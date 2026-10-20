@@ -126,14 +126,17 @@ button.peligro {
 }
 
 .campo input,
-.campo select {
+.campo select,
+.filtros input,
+.filtros select {
   padding: 8px;
   border: 1px solid #bbb;
   border-radius: 4px;
   font-size: 14px;
 }
 
-.campo input[aria-invalid='true'] {
+.campo input[aria-invalid='true'],
+.campo select[aria-invalid='true'] {
   border-color: #b3261e;
 }
 
@@ -170,12 +173,53 @@ button.peligro {
 }
 
 .tabla .acciones {
-  display: flex;
-  gap: 6px;
+  white-space: nowrap;
+}
+
+.tabla .acciones button + button {
+  margin-left: 6px;
 }
 
 .vacio {
   color: #666;
+}
+
+.barra-titulo {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.barra-titulo h1 {
+  margin: 0 auto 0 0;
+}
+
+.filtros {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.filtros label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.panel-formulario {
+  padding: 16px;
+  margin-bottom: 20px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.tabla-contenedor {
+  overflow-x: auto;
 }
 
 .fondo-modal {
@@ -188,8 +232,13 @@ button.peligro {
 }
 
 .modal {
-  max-width: 400px;
+  box-sizing: border-box;
+  width: min(400px, calc(100vw - 32px));
   padding: 20px;
   border-radius: 6px;
   background-color: white;
+}
+
+.modal .botones {
+  margin-top: 12px;
 }
