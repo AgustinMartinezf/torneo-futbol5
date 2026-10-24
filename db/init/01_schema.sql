@@ -51,7 +51,7 @@ CREATE TABLE facultad (
 
 
 -- La CI es VARCHAR porque es un identificador y no se hacen cuentas con ella.
--- El dígito verificador lo validan el back y el front (ADR 0009).
+-- El formato se controla con CHECK y el dígito verificador con un trigger (ADR 0009).
 CREATE TABLE jugador (
     ci               VARCHAR(8)   NOT NULL,
     nombre           VARCHAR(60)  NOT NULL,
@@ -72,6 +72,64 @@ CREATE TABLE jugador (
     -- CURDATE() no está permitido en un CHECK, así que la edad mínima la controla el back.
     CONSTRAINT chk_jugador_fecha_nacimiento CHECK (fecha_nacimiento >= '1900-01-01')
 ) ENGINE = InnoDB;
+
+
+-- Para una CI de 7 dígitos completamos con un cero a la izquierda. Los primeros
+-- 7 se multiplican por 2, 9, 8, 7, 6, 3 y 4; el octavo es el verificador.
+DELIMITER //
+CREATE FUNCTION ci_uruguaya_valida(p_ci VARCHAR(8))
+RETURNS BOOLEAN DETERMINISTIC NO SQL
+BEGIN
+    DECLARE v_ci CHAR(8);
+    DECLARE v_suma INT;
+
+    IF p_ci IS NULL OR NOT REGEXP_LIKE(p_ci, '^[0-9]{7,8}$', 'c') THEN
+        RETURN FALSE;
+    END IF;
+
+    SET v_ci = LPAD(p_ci, 8, '0');
+    SET v_suma = CAST(SUBSTRING(v_ci, 1, 1) AS UNSIGNED) * 2
+               + CAST(SUBSTRING(v_ci, 2, 1) AS UNSIGNED) * 9
+               + CAST(SUBSTRING(v_ci, 3, 1) AS UNSIGNED) * 8
+               + CAST(SUBSTRING(v_ci, 4, 1) AS UNSIGNED) * 7
+               + CAST(SUBSTRING(v_ci, 5, 1) AS UNSIGNED) * 6
+               + CAST(SUBSTRING(v_ci, 6, 1) AS UNSIGNED) * 3
+               + CAST(SUBSTRING(v_ci, 7, 1) AS UNSIGNED) * 4;
+    RETURN MOD(10 - MOD(v_suma, 10), 10) = CAST(RIGHT(v_ci, 1) AS UNSIGNED);
+END//
+
+-- Tomamos de 16 a 120 años como rango razonable para jugadores de grado,
+-- posgrado, docentes y funcionarios. CURDATE() usa la hora del servidor MySQL.
+CREATE TRIGGER trg_jugador_validar_insert
+BEFORE INSERT ON jugador
+FOR EACH ROW
+BEGIN
+    IF NOT ci_uruguaya_valida(NEW.ci) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'La cédula debe tener 7 u 8 dígitos y un verificador válido.';
+    END IF;
+    IF NEW.fecha_nacimiento IS NULL
+       OR TIMESTAMPDIFF(YEAR, NEW.fecha_nacimiento, CURDATE()) NOT BETWEEN 16 AND 120 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'La edad del jugador debe estar entre 16 y 120 años.';
+    END IF;
+END//
+
+CREATE TRIGGER trg_jugador_validar_update
+BEFORE UPDATE ON jugador
+FOR EACH ROW
+BEGIN
+    IF NOT ci_uruguaya_valida(NEW.ci) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'La cédula debe tener 7 u 8 dígitos y un verificador válido.';
+    END IF;
+    IF NEW.fecha_nacimiento IS NULL
+       OR TIMESTAMPDIFF(YEAR, NEW.fecha_nacimiento, CURDATE()) NOT BETWEEN 16 AND 120 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'La edad del jugador debe estar entre 16 y 120 años.';
+    END IF;
+END//
+DELIMITER ;
 
 
 -- Cada edición es un semestre, de ahí el UNIQUE(anio, semestre).

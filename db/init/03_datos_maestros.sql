@@ -8,7 +8,8 @@ INSERT INTO facultad (id_facultad, nombre) VALUES
     (1, 'Ingeniería y Tecnologías'),
     (2, 'Ciencias Empresariales'),
     (3, 'Derecho y Artes Liberales'),
-    (4, 'Ciencias de la Salud');
+    (4, 'Ciencias de la Salud'),
+    (5, 'Comunicación');
 
 INSERT INTO turno (id_turno, hora_inicio, hora_fin) VALUES
     (1, '18:00:00', '19:00:00'),
@@ -93,4 +94,22 @@ INSERT INTO jugador (ci, nombre, apellido, email, fecha_nacimiento, id_facultad,
     ('50000486', 'Valentina', 'Fernández', 'jugador49@torneo.example', '2003-01-21', 4, 'posgrado'),
     ('50000492', 'Camila', 'Fernández', 'jugador50@torneo.example', '2004-02-22', 4, 'posgrado'),
     ('50000505', 'Sofía', 'Fernández', 'jugador51@torneo.example', '1985-03-23', 4, 'docente'),
-    ('50000511', 'Emilia', 'Fernández', 'jugador52@torneo.example', '1985-04-24', 4, 'funcionario');
+    ('50000511', 'Emilia', 'Fernández', 'jugador52@torneo.example', '1985-04-24', 4, 'funcionario'),
+    ('1234561', 'Valeria', 'Suárez', 'jugador53@torneo.example', '2002-03-04', 1, 'grado');
+
+-- La facultad 5 no tiene jugadores y Valeria no está en ningún plantel. Sirven
+-- para probar bajas permitidas, además de las bajas que rechazan las FK.
+
+-- Un plantel de cinco jugadores permite comprobar que la baja de un jugador
+-- inscripto devuelve un conflicto y no borra su historia.
+INSERT INTO equipo (id_equipo, nombre, id_torneo, id_facultad, ci_capitan) VALUES
+    (1, 'Ingeniería Verde', 2, 1, NULL);
+
+INSERT INTO equipo_jugador_torneo (id_equipo, ci_jugador, id_torneo, numero_camiseta) VALUES
+    (1, '50000000', 2, 1),
+    (1, '50000016', 2, 2),
+    (1, '50000022', 2, 3),
+    (1, '50000038', 2, 4),
+    (1, '50000044', 2, 5);
+
+UPDATE equipo SET ci_capitan = '50000000' WHERE id_equipo = 1;

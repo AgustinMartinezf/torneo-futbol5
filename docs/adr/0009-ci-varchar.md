@@ -5,7 +5,9 @@ La cédula uruguaya tiene 7 u 8 dígitos contando el verificador. Había que ele
 
 ## Qué hicimos
 `ci` es VARCHAR(8), sin puntos ni guion, con un CHECK que pide solo números y entre 7 y 8 dígitos
-(`REGEXP_LIKE(ci, '^[0-9]{7,8}$')`). El dígito verificador lo controlamos en el back y en el front.
+(`REGEXP_LIKE(ci, '^[0-9]{7,8}$')`). Controlamos el dígito verificador en el formulario,
+en el back y en un trigger de MySQL. Para las cédulas de 7 dígitos completamos con un cero a la izquierda
+antes del cálculo.
 
 ## Qué descartamos y por qué
 Usar INT. Ocupa menos, pero con la CI no se hacen cuentas, y como número se pueden perder los ceros de adelante.

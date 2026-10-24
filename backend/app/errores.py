@@ -20,10 +20,16 @@ ER_SIGNAL = 1644
 ER_DUPLICADO = 1062
 ER_FK_PADRE_EN_USO = 1451
 ER_FK_NO_EXISTE = 1452
+# Mismos errores de FK sin el nombre de la constraint (MySQL los da según los permisos del usuario).
+ER_FK_NO_EXISTE_SIN_NOMBRE = 1216
+ER_FK_EN_USO_SIN_NOMBRE = 1217
 ER_CHECK = 3819
 ER_VALOR_INVALIDO = 1265
 ER_NULO = 1048
 ER_MUY_LARGO = 1406
+ER_SIN_VALOR = 1364
+ER_FECHA_INVALIDA = 1292
+ER_TIPO_INVALIDO = 1366
 ER_SIN_PERMISO_TABLA = 1142
 ER_SIN_PERMISO_COLUMNA = 1143
 ER_SIN_PERMISO_RUTINA = 1370
@@ -36,11 +42,15 @@ MENSAJES = {
     "chk_login_correo": "El correo no tiene un formato válido.",
     "chk_login_contrasena_hash": "La contraseña tiene que guardarse como hash bcrypt.",
     "uq_facultad_nombre": "Ya existe una facultad con ese nombre.",
+    "chk_facultad_nombre": "El nombre de la facultad es obligatorio.",
     "jugador.PRIMARY": "Ya existe un jugador con esa cédula.",
     "uq_jugador_email": "Ya existe un jugador con ese correo.",
     "fk_jugador_facultad": "La facultad indicada no existe.",
     "chk_jugador_ci": "La cédula tiene que tener 7 u 8 dígitos, sin puntos ni guiones.",
+    "chk_jugador_nombre": "El nombre del jugador es obligatorio.",
+    "chk_jugador_apellido": "El apellido del jugador es obligatorio.",
     "chk_jugador_email": "El correo del jugador no tiene un formato válido.",
+    "chk_jugador_fecha_nacimiento": "La fecha de nacimiento no es válida.",
     "uq_torneo_anio_semestre": "Ya existe una edición para ese año y semestre.",
     "uq_torneo_nombre": "Ya existe una edición con ese nombre.",
     "chk_torneo_fechas": "La fecha de inicio tiene que ser anterior a la de fin.",
@@ -82,6 +92,9 @@ _PATRONES = {
     ER_VALOR_INVALIDO: r"column '([^']+)'",
     ER_NULO: r"Column '([^']+)'",
     ER_MUY_LARGO: r"column '([^']+)'",
+    ER_SIN_VALOR: r"Field '([^']+)'",
+    ER_FECHA_INVALIDA: r"column '([^']+)'",
+    ER_TIPO_INVALIDO: r"column '([^']+)'",
 }
 
 
@@ -114,12 +127,16 @@ def traducir_error_mysql(error: mysql.connector.Error) -> tuple[int, str]:
         )
     if errno == ER_FK_NO_EXISTE:
         return 400, _mensaje_de_constraint(nombre, "Hace referencia a un dato que no existe.")
+    if errno == ER_FK_NO_EXISTE_SIN_NOMBRE:
+        return 400, "Hace referencia a un dato que no existe."
+    if errno == ER_FK_EN_USO_SIN_NOMBRE:
+        return 409, "No se puede borrar porque otros datos lo usan."
     if errno == ER_CHECK:
         return 400, _mensaje_de_constraint(nombre, "Los datos no cumplen una regla de la base.")
     campo = f"El campo {nombre}" if nombre else "Un campo"
-    if errno == ER_VALOR_INVALIDO:
+    if errno in (ER_VALOR_INVALIDO, ER_FECHA_INVALIDA, ER_TIPO_INVALIDO):
         return 400, f"{campo} tiene un valor que no es válido."
-    if errno == ER_NULO:
+    if errno in (ER_NULO, ER_SIN_VALOR):
         return 400, f"{campo} es obligatorio."
     if errno == ER_MUY_LARGO:
         return 400, f"{campo} es demasiado largo."
