@@ -35,7 +35,6 @@ export default function AuthProvider({ children }) {
     setSesion(datos)
   }
 
-  // Llamada al back con el token de la sesión.
   function pedir(path, opciones = {}) {
     return api(path, { ...opciones, token: sesion?.token })
   }

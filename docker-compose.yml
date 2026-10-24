@@ -11,8 +11,7 @@ services:
       - "3306:3306"
     volumes:
       - db_data:/var/lib/mysql
-      # Los scripts se ejecutan en orden alfabético SOLO la primera vez que se crea el volumen.
-      # Para re-ejecutarlos: docker compose down -v && docker compose up --build
+      # Los scripts corren solo al crear el volumen: para repetirlos, docker compose down -v.
       - ./db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       # Por TCP y no por socket: mientras corren los scripts de init el servidor

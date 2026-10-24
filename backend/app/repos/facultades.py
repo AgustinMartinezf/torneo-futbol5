@@ -1,6 +1,3 @@
-"""Consultamos facultades con parámetros, sin SQL en el router."""
-
-
 def listar(conn) -> list[dict]:
     cursor = conn.cursor(dictionary=True)
     try:

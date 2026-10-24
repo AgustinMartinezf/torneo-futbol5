@@ -78,7 +78,12 @@ valida el front y el back.
 |---|---|---|
 | Torneo con 3 estados; tipos de jugador; estados de partido; colores; motivos | ENUM | implementada |
 | Una edición por semestre | `uq_torneo_anio_semestre` | implementada |
-| Turnos de 1 h entre 18:00 y 23:00 | `chk_turno_*` | implementada |
+| Turnos de 1 h entre 18:00 y 23:00 | `chk_turno_*`; `app_admin` solo puede consultar `turno` (S-14) | implementada |
+| Complejo en uno de los 19 departamentos | ENUM `departamento` | implementada |
+| Superficie de la cancha `sintético` o `parquet`; techada sí o no | ENUM `superficie`, `chk_cancha_techada` | implementada |
+| Nombre de cancha único dentro del complejo | `pk_cancha` | implementada |
+| Una cancha no cambia de complejo | `trg_cancha_no_cambiar_complejo` (S-15) | implementada |
+| No borrar un complejo con canchas ni una cancha con partidos | `fk_cancha_complejo`, `fk_partido_cancha` (RESTRICT) | implementada |
 | Capitán es jugador de su plantel | `fk_equipo_capitan` | implementada |
 | Equipo con capitán al pasar a `en curso` | trigger | pendiente, ABM de equipos |
 | Máx. 2 docentes/funcionarios por plantel | trigger | pendiente, ABM de equipos |
@@ -111,8 +116,9 @@ planillero) y la contraseña se guarda como hash bcrypt. En la base creamos un u
 la conexión del rol de quien inició sesión. Así, aunque el back tuviera un error, la base no deja que un planillero
 haga algo que no le corresponde.
 
-- `app_admin` puede consultar, insertar, modificar y borrar datos en todas las tablas del esquema. No puede crear ni
-  modificar tablas, ni dar permisos a otros usuarios.
+- `app_admin` puede consultar, insertar, modificar y borrar datos en todas las tablas del esquema, salvo `turno`, que
+  solo puede consultar porque los turnos son fijos (S-14). No puede crear ni modificar tablas, ni dar permisos a otros
+  usuarios.
 - `app_planillero` puede consultar las tablas que necesita para cargar una planilla: facultades, jugadores, torneos,
   equipos, planteles, complejos, canchas, turnos, partidos y sanciones. Puede insertar, modificar y borrar en
   `planilla_partido`, `gol` y `tarjeta`. No puede modificar `partido` ni leer `login`.

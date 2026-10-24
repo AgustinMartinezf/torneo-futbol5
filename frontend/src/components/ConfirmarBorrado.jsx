@@ -1,4 +1,3 @@
-// Cuadro para confirmar una baja. Se muestra solo si abierto es true.
 export default function ConfirmarBorrado({ abierto, mensaje, error, borrando, onConfirmar, onCancelar }) {
   if (!abierto) return null
 

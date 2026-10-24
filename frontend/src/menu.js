@@ -1,4 +1,4 @@
-// Secciones de la aplicación y qué roles las ven. El menú y las rutas salen de esta lista.
+// El menú y las rutas salen de esta lista.
 export const SECCIONES = [
   { ruta: 'jugadores', texto: 'Jugadores', roles: ['administrador'] },
   { ruta: 'facultades', texto: 'Facultades', roles: ['administrador'] },
