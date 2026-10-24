@@ -1,4 +1,3 @@
-// Cliente HTTP mínimo. Todas las llamadas al backend pasan por acá.
 export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 // Lo registra el contexto de auth: cierra la sesión cuando el back responde 401.

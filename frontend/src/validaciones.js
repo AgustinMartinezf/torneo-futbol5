@@ -45,3 +45,35 @@ export function validarJugador(valores, facultades) {
   }
   return errores
 }
+
+export const DEPARTAMENTOS = [
+  'Artigas', 'Canelones', 'Cerro Largo', 'Colonia', 'Durazno', 'Flores', 'Florida',
+  'Lavalleja', 'Maldonado', 'Montevideo', 'Paysandú', 'Río Negro', 'Rivera', 'Rocha',
+  'Salto', 'San José', 'Soriano', 'Tacuarembó', 'Treinta y Tres',
+]
+export const SUPERFICIES = ['sintético', 'parquet']
+
+export function validarComplejo(valores) {
+  const errores = {}
+  if (!valores.nombre.trim() || valores.nombre.trim().length > 100) {
+    errores.nombre = 'Ingresá un nombre de hasta 100 caracteres.'
+  }
+  if (!valores.direccion.trim() || valores.direccion.trim().length > 150) {
+    errores.direccion = 'Ingresá una dirección de hasta 150 caracteres.'
+  }
+  if (!DEPARTAMENTOS.includes(valores.departamento)) {
+    errores.departamento = 'Seleccioná un departamento.'
+  }
+  return errores
+}
+
+export function validarCancha(valores) {
+  const errores = {}
+  if (!valores.nombre_cancha.trim() || valores.nombre_cancha.trim().length > 50) {
+    errores.nombre_cancha = 'Ingresá un nombre de hasta 50 caracteres.'
+  }
+  if (!SUPERFICIES.includes(valores.superficie)) {
+    errores.superficie = 'Seleccioná una superficie.'
+  }
+  return errores
+}

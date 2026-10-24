@@ -1,8 +1,4 @@
-"""Autenticación con JWT y control de acceso por rol.
-
-El token lleva el correo y el rol. Con el rol elegimos la conexión de base de datos
-de cada request (ver db.conexion_del_usuario).
-"""
+"""El token JWT lleva el correo y el rol; con el rol se elige la conexión de MySQL (db.conexion_del_usuario)."""
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -58,7 +54,6 @@ def usuario_actual(
 
 
 def requiere_rol(*roles: str):
-    """Dependencia que deja pasar solo a los usuarios con alguno de los roles indicados."""
     def verificar(usuario: Usuario = Depends(usuario_actual)) -> Usuario:
         if usuario.rol not in roles:
             raise HTTPException(

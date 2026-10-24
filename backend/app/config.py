@@ -1,4 +1,3 @@
-"""Configuración leída de las variables de entorno (ver .env.example)."""
 import os
 
 JWT_SECRET = os.getenv("JWT_SECRET", "")
