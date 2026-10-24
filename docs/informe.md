@@ -123,8 +123,12 @@ postergar partidos, que libera la cancha y el cruce. El procedimiento es `SQL SE
 de quien lo creó, y solo pasa un partido de `programado` a `jugado` si ya terminó su turno. Al planillero le damos
 `EXECUTE` sobre ese procedimiento y nada más sobre `partido`.
 
-Los permisos están en [`db/init/02_usuarios.sql`](../db/init/02_usuarios.sql). Como al planillero le damos permisos
-tabla por tabla, cada vista o procedimiento nuevo que tenga que usar lleva su propio `GRANT`.
+Los permisos están en [`db/init/02_usuarios.sql`](../db/init/02_usuarios.sql). A los dos usuarios les damos permisos
+tabla por tabla, también al administrador. Al principio `app_admin` tenía permisos sobre toda la base, pero así MySQL
+responde a un error de clave foránea con un mensaje que no trae el nombre de la constraint (errores 1216 y 1217), y el
+back no puede decirle al usuario qué dato está en uso. Con permisos por tabla devuelve los errores 1451 y 1452, que sí
+lo traen. Por eso cada tabla o vista nueva lleva su `GRANT` para los dos usuarios. Los procedimientos los puede ejecutar
+`app_admin` con un `GRANT EXECUTE` sobre todo el esquema; el planillero solo los que le damos uno por uno.
 
 Para iniciar sesión, el front manda correo y contraseña a `POST /auth/login`. El back busca la cuenta en `login` con la
 conexión de `app_admin`, porque todavía no sabe el rol y `app_planillero` no puede leer esa tabla. Compara la contraseña
