@@ -27,7 +27,7 @@ docker compose up --build
 
 - Frontend: http://localhost:5173
 - API: http://localhost:8000 (documentación interactiva en `/docs`)
-- MySQL: `localhost:3306`
+- MySQL: `localhost:3307` (publicamos el 3307 para no chocar con un MySQL instalado en la PC; dentro de Docker la API usa el 3306)
 
 Los scripts de `db/init/` se ejecutan **solo la primera vez** que se crea el volumen.
 Para recrear la base desde cero:
