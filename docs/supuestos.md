@@ -26,6 +26,13 @@ están las preguntas que tenemos para el docente.
 | S-13 | Tomamos entre 16 y 120 años como edad razonable para un jugador. | Formulario de jugadores, Pydantic y triggers de `jugador` |
 | S-14 | Los turnos son los cinco de la letra (18 a 23) y no cambian, así que no tienen ABM: solo se listan. | `GET /turnos`, `app_admin` solo con SELECT en `turno` |
 | S-15 | Una cancha no se cambia de complejo. Si se la pudiera mover, por el ON UPDATE CASCADE también cambiaría el lugar de los partidos que ya se jugaron. Sí se le puede cambiar el nombre. | `trg_cancha_no_cambiar_complejo`, ABM de canchas |
+| S-16 | Creamos las ediciones en inscripción y las pasamos a en curso y luego a finalizado, sin saltos ni retrocesos. Exigimos entre 5 y 10 jugadores y capitán por equipo al iniciar. | Triggers de `torneo`, back y formulario |
+| S-17 | Inscribimos y borramos equipos solo en inscripción. También limitamos a esa etapa los cambios de facultad, edición y capitán. El nombre puede corregirse después. | Triggers de `equipo`, back y formularios |
+| S-18 | No se puede cambiar la facultad de un jugador que estuvo en algún plantel, aunque la edición esté finalizada. Así no quedan planteles viejos con jugadores de otra facultad. | `trg_jugador_validar_update`, back y formulario de jugadores |
+
+Los planteles pueden tener menos de cinco jugadores mientras los cargamos durante la inscripción. Exigimos entre
+cinco y diez, con capitán, al pasar la edición a en curso. El máximo de diez y el cupo de docentes y funcionarios
+se controlan en cada alta o cambio.
 
 ## Preguntas para el docente
 1. (S-03) ¿Una facultad puede inscribir más de un equipo en la misma edición? Hoy el modelo lo permite.

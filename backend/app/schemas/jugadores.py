@@ -50,3 +50,5 @@ class JugadorOut(BaseModel):
     id_facultad: int
     tipo: TipoJugador
     facultad: str
+    tiene_plantel: bool
+    cupo_docentes_completo: bool

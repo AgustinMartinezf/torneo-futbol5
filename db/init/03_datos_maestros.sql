@@ -111,3 +111,65 @@ INSERT INTO equipo_jugador_torneo (id_equipo, ci_jugador, id_torneo, numero_cami
     (1, '50000044', 2, 5);
 
 UPDATE equipo SET ci_capitan = '50000000' WHERE id_equipo = 1;
+
+INSERT INTO equipo (id_equipo, nombre, id_torneo, id_facultad, ci_capitan) VALUES
+    (2, 'Ingeniería Azul', 2, 1, NULL),
+    (3, 'Empresariales Verde', 2, 2, NULL),
+    (4, 'Empresariales Azul', 2, 2, NULL),
+    (5, 'Derecho Verde', 2, 3, NULL),
+    (6, 'Salud Verde', 2, 4, NULL),
+    (7, 'Ingeniería Verde', 1, 1, NULL),
+    (8, 'Empresariales Verde', 1, 2, NULL);
+
+INSERT INTO equipo_jugador_torneo (id_equipo, ci_jugador, id_torneo, numero_camiseta) VALUES
+    (2, '50000050', 2, 1),
+    (2, '50000066', 2, 2),
+    (2, '50000072', 2, 3),
+    (2, '50000088', 2, 4),
+    (2, '50000113', 2, 5),
+    (2, '50000129', 2, 6),
+    (3, '50000135', 2, 1),
+    (3, '50000141', 2, 2),
+    (3, '50000157', 2, 3),
+    (3, '50000163', 2, 4),
+    (3, '50000248', 2, 5),
+    (3, '50000254', 2, 6),
+    (4, '50000179', 2, 1),
+    (4, '50000185', 2, 2),
+    (4, '50000191', 2, 3),
+    (4, '50000204', 2, 4),
+    (4, '50000210', 2, 5),
+    (4, '50000226', 2, 6),
+    (4, '50000232', 2, 7),
+    (5, '50000260', 2, 1),
+    (5, '50000276', 2, 2),
+    (5, '50000282', 2, 3),
+    (5, '50000298', 2, 4),
+    (5, '50000373', 2, 5),
+    (5, '50000389', 2, 6),
+    (6, '50000395', 2, 1),
+    (6, '50000408', 2, 2),
+    (6, '50000414', 2, 3),
+    (6, '50000420', 2, 4),
+    (6, '50000505', 2, 5),
+    (6, '50000511', 2, 6),
+    (7, '50000000', 1, 1),
+    (7, '50000016', 1, 2),
+    (7, '50000022', 1, 3),
+    (7, '50000038', 1, 4),
+    (7, '50000113', 1, 5),
+    (7, '50000129', 1, 6),
+    (8, '50000135', 1, 1),
+    (8, '50000141', 1, 2),
+    (8, '50000157', 1, 3),
+    (8, '50000163', 1, 4),
+    (8, '50000248', 1, 5),
+    (8, '50000254', 1, 6);
+
+UPDATE equipo SET ci_capitan = '50000050' WHERE id_equipo = 2;
+UPDATE equipo SET ci_capitan = '50000135' WHERE id_equipo = 3;
+UPDATE equipo SET ci_capitan = '50000179' WHERE id_equipo = 4;
+UPDATE equipo SET ci_capitan = '50000260' WHERE id_equipo = 5;
+UPDATE equipo SET ci_capitan = '50000395' WHERE id_equipo = 6;
+UPDATE equipo SET ci_capitan = '50000000' WHERE id_equipo = 7;
+UPDATE equipo SET ci_capitan = '50000135' WHERE id_equipo = 8;

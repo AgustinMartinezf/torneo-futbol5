@@ -4,6 +4,7 @@ export const SECCIONES = [
   { ruta: 'facultades', texto: 'Facultades', roles: ['administrador'] },
   { ruta: 'complejos', texto: 'Complejos y canchas', roles: ['administrador'] },
   { ruta: 'equipos', texto: 'Equipos y planteles', roles: ['administrador'] },
+  { ruta: 'torneos', texto: 'Torneos', roles: ['administrador'] },
   { ruta: 'partidos', texto: 'Partidos', roles: ['administrador'] },
   { ruta: 'planillas', texto: 'Planillas', roles: ['administrador', 'planillero'] },
   { ruta: 'sanciones', texto: 'Sanciones', roles: ['administrador'] },
