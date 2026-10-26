@@ -4,6 +4,8 @@ import RutaProtegida from './components/RutaProtegida.jsx'
 import { SECCIONES } from './menu.js'
 import ComplejosPage from './pages/ComplejosPage.jsx'
 import FacultadesPage from './pages/FacultadesPage.jsx'
+import EquiposPage from './pages/EquiposPage.jsx'
+import TorneosPage from './pages/TorneosPage.jsx'
 import InicioPage from './pages/InicioPage.jsx'
 import JugadoresPage from './pages/JugadoresPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
@@ -12,6 +14,7 @@ import PendientePage from './pages/PendientePage.jsx'
 export default function App() {
   const paginas = {
     jugadores: <JugadoresPage />, facultades: <FacultadesPage />, complejos: <ComplejosPage />,
+    torneos: <TorneosPage />, equipos: <EquiposPage />,
   }
 
   return (

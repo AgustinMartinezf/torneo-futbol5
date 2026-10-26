@@ -4,7 +4,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.errores import manejar_error_mysql, manejar_error_validacion
-from app.routers import auth, complejos, facultades, jugadores, turnos, usuarios
+from app.routers import auth, complejos, equipos, facultades, jugadores, torneos, turnos, usuarios
 
 app = FastAPI(title="Torneo Interfacultades de Fútbol 5 - API")
 
@@ -25,6 +25,8 @@ app.include_router(facultades.router)
 app.include_router(jugadores.router)
 app.include_router(complejos.router)
 app.include_router(turnos.router)
+app.include_router(torneos.router)
+app.include_router(equipos.router)
 
 
 @app.get("/health")

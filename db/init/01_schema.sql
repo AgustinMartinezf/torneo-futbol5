@@ -108,6 +108,24 @@ BEGIN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'La edad del jugador debe estar entre 16 y 120 años.';
     END IF;
+    IF NEW.id_facultad <> OLD.id_facultad AND EXISTS (
+        SELECT 1 FROM equipo_jugador_torneo ejt JOIN equipo e ON e.id_equipo = ejt.id_equipo
+        WHERE ejt.ci_jugador = OLD.ci AND e.id_facultad <> NEW.id_facultad
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'No se puede cambiar la facultad: el jugador tiene un plantel de otra facultad.';
+    END IF;
+    IF NEW.tipo <> OLD.tipo AND NEW.tipo IN ('docente', 'funcionario') AND EXISTS (
+        SELECT 1 FROM equipo_jugador_torneo propio
+        WHERE propio.ci_jugador = OLD.ci AND (
+            SELECT COUNT(*) FROM equipo_jugador_torneo otro JOIN jugador j ON j.ci = otro.ci_jugador
+            WHERE otro.id_equipo = propio.id_equipo AND otro.ci_jugador <> OLD.ci
+              AND j.tipo IN ('docente', 'funcionario')
+        ) >= 2
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'El cambio de tipo supera el máximo de 2 docentes o funcionarios en un plantel.';
+    END IF;
 END//
 DELIMITER ;
 
@@ -186,6 +204,128 @@ BEGIN
     IF NEW.id_equipo <> OLD.id_equipo OR NEW.id_torneo <> OLD.id_torneo THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'No se puede cambiar el equipo de un jugador del plantel. Hay que sacarlo e inscribirlo de nuevo.';
+    END IF;
+    IF (SELECT estado FROM torneo WHERE id_torneo = OLD.id_torneo) <> 'inscripción' THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'El plantel solo se puede modificar durante la inscripción.';
+    END IF;
+    IF (SELECT id_facultad FROM jugador WHERE ci = NEW.ci_jugador)
+       <> (SELECT id_facultad FROM equipo WHERE id_equipo = NEW.id_equipo) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Todos los jugadores deben ser de la facultad del equipo.';
+    END IF;
+    IF (SELECT tipo FROM jugador WHERE ci = NEW.ci_jugador) IN ('docente', 'funcionario')
+       AND (SELECT COUNT(*) FROM equipo_jugador_torneo ejt JOIN jugador j ON j.ci = ejt.ci_jugador
+            WHERE ejt.id_equipo = NEW.id_equipo AND ejt.ci_jugador <> OLD.ci_jugador
+              AND j.tipo IN ('docente', 'funcionario')) >= 2 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'El plantel admite como máximo 2 docentes o funcionarios.';
+    END IF;
+END//
+
+CREATE TRIGGER trg_ejt_validar_insert
+BEFORE INSERT ON equipo_jugador_torneo
+FOR EACH ROW
+BEGIN
+    IF (SELECT estado FROM torneo WHERE id_torneo = NEW.id_torneo) <> 'inscripción' THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'El plantel solo se puede modificar durante la inscripción.';
+    END IF;
+    IF (SELECT id_facultad FROM jugador WHERE ci = NEW.ci_jugador)
+       <> (SELECT id_facultad FROM equipo WHERE id_equipo = NEW.id_equipo) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Todos los jugadores deben ser de la facultad del equipo.';
+    END IF;
+    IF (SELECT COUNT(*) FROM equipo_jugador_torneo WHERE id_equipo = NEW.id_equipo) >= 10 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'El plantel admite como máximo 10 jugadores.';
+    END IF;
+    IF (SELECT tipo FROM jugador WHERE ci = NEW.ci_jugador) IN ('docente', 'funcionario')
+       AND (SELECT COUNT(*) FROM equipo_jugador_torneo ejt JOIN jugador j ON j.ci = ejt.ci_jugador
+            WHERE ejt.id_equipo = NEW.id_equipo AND j.tipo IN ('docente', 'funcionario')) >= 2 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'El plantel admite como máximo 2 docentes o funcionarios.';
+    END IF;
+END//
+
+CREATE TRIGGER trg_ejt_validar_delete
+BEFORE DELETE ON equipo_jugador_torneo
+FOR EACH ROW
+BEGIN
+    IF (SELECT estado FROM torneo WHERE id_torneo = OLD.id_torneo) <> 'inscripción' THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'El plantel solo se puede modificar durante la inscripción.';
+    END IF;
+END//
+
+CREATE TRIGGER trg_equipo_validar_insert
+BEFORE INSERT ON equipo
+FOR EACH ROW
+BEGIN
+    IF (SELECT estado FROM torneo WHERE id_torneo = NEW.id_torneo) <> 'inscripción' THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Solo se pueden inscribir equipos durante la inscripción.';
+    END IF;
+END//
+
+CREATE TRIGGER trg_equipo_validar_update
+BEFORE UPDATE ON equipo
+FOR EACH ROW
+BEGIN
+    IF (NEW.id_facultad <> OLD.id_facultad OR NEW.id_torneo <> OLD.id_torneo
+        OR COALESCE(NEW.ci_capitan, '') <> COALESCE(OLD.ci_capitan, ''))
+       AND ((SELECT estado FROM torneo WHERE id_torneo = OLD.id_torneo) <> 'inscripción'
+            OR (SELECT estado FROM torneo WHERE id_torneo = NEW.id_torneo) <> 'inscripción') THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'La facultad, la edición y el capitán solo se cambian durante la inscripción.';
+    END IF;
+    IF NEW.id_facultad <> OLD.id_facultad AND EXISTS (
+        SELECT 1 FROM equipo_jugador_torneo ejt JOIN jugador j ON j.ci = ejt.ci_jugador
+        WHERE ejt.id_equipo = OLD.id_equipo AND j.id_facultad <> NEW.id_facultad
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'No se puede cambiar la facultad del equipo porque tiene jugadores de otra facultad.';
+    END IF;
+END//
+
+CREATE TRIGGER trg_equipo_validar_delete
+BEFORE DELETE ON equipo
+FOR EACH ROW
+BEGIN
+    IF (SELECT estado FROM torneo WHERE id_torneo = OLD.id_torneo) <> 'inscripción' THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Solo se pueden borrar equipos durante la inscripción.';
+    END IF;
+END//
+
+CREATE TRIGGER trg_torneo_validar_insert
+BEFORE INSERT ON torneo
+FOR EACH ROW
+BEGIN
+    IF NEW.estado <> 'inscripción' THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Una edición debe crearse en inscripción.';
+    END IF;
+END//
+
+CREATE TRIGGER trg_torneo_validar_update
+BEFORE UPDATE ON torneo
+FOR EACH ROW
+BEGIN
+    IF NEW.estado <> OLD.estado AND NOT (
+        (OLD.estado = 'inscripción' AND NEW.estado = 'en curso')
+        OR (OLD.estado = 'en curso' AND NEW.estado = 'finalizado')
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Los estados deben avanzar de inscripción a en curso y luego a finalizado.';
+    END IF;
+    IF NEW.estado = 'en curso' AND OLD.estado = 'inscripción' AND EXISTS (
+        SELECT 1 FROM equipo e WHERE e.id_torneo = OLD.id_torneo
+        AND (e.ci_capitan IS NULL OR
+             (SELECT COUNT(*) FROM equipo_jugador_torneo ejt WHERE ejt.id_equipo = e.id_equipo) NOT BETWEEN 5 AND 10)
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Para iniciar la edición todos los equipos deben tener entre 5 y 10 jugadores y un capitán.';
     END IF;
 END//
 DELIMITER ;

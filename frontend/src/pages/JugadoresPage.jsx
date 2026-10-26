@@ -70,7 +70,7 @@ export default function JugadoresPage() {
   function editar(jugador) {
     const { ci, nombre, apellido, email, fecha_nacimiento, id_facultad, tipo } = jugador
     setFormulario({
-      modo: 'editar', ciOriginal: ci,
+      modo: 'editar', ciOriginal: ci, tienePlantel: jugador.tiene_plantel, cupoDocentesCompleto: jugador.cupo_docentes_completo,
       valores: { ci, nombre, apellido, email, fecha_nacimiento, id_facultad: String(id_facultad), tipo },
     })
     setErrores({})
@@ -184,11 +184,13 @@ export default function JugadoresPage() {
             <div className="campo">
               <label htmlFor="id_facultad">Facultad</label>
               <select id="id_facultad" value={formulario.valores.id_facultad}
+                disabled={formulario.tienePlantel}
                 onChange={(e) => cambiar('id_facultad', e.target.value)} aria-invalid={errores.id_facultad ? 'true' : undefined}>
                 <option value="">Seleccionar</option>
                 {facultades.map((f) => <option key={f.id_facultad} value={f.id_facultad}>{f.nombre}</option>)}
               </select>
               {errores.id_facultad && <p className="error-campo">{errores.id_facultad}</p>}
+              {formulario.tienePlantel && <p>La facultad no se cambia mientras el jugador tenga un plantel.</p>}
             </div>
             <div className="campo">
               <label htmlFor="tipo">Tipo</label>
@@ -197,10 +199,11 @@ export default function JugadoresPage() {
                 <option value="">Seleccionar</option>
                 <option value="grado">Grado</option>
                 <option value="posgrado">Posgrado</option>
-                <option value="docente">Docente</option>
-                <option value="funcionario">Funcionario</option>
+                <option value="docente" disabled={formulario.cupoDocentesCompleto}>Docente</option>
+                <option value="funcionario" disabled={formulario.cupoDocentesCompleto}>Funcionario</option>
               </select>
               {errores.tipo && <p className="error-campo">{errores.tipo}</p>}
+              {formulario.cupoDocentesCompleto && <p>Su plantel ya tiene 2 docentes o funcionarios.</p>}
             </div>
           </Formulario>
         </div>

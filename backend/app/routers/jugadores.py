@@ -23,9 +23,10 @@ def listar_jugadores(
     id_facultad: int | None = Query(default=None, gt=0),
     tipo: TipoJugador | None = None,
     busqueda: str | None = Query(default=None, max_length=100),
+    id_torneo: int | None = Query(default=None, gt=0),
     conn=Depends(conexion_del_usuario),
 ):
-    return repo.listar(conn, id_facultad, tipo, busqueda.strip() if busqueda else None)
+    return repo.listar(conn, id_facultad, tipo, busqueda.strip() if busqueda else None, id_torneo)
 
 
 @router.get("/{ci}", response_model=JugadorOut)
@@ -44,8 +45,13 @@ def crear_jugador(datos: JugadorIn, conn=Depends(conexion_del_usuario)):
 
 @router.put("/{ci}", response_model=JugadorOut)
 def actualizar_jugador(ci: str, datos: JugadorIn, conn=Depends(conexion_del_usuario)):
-    if repo.obtener(conn, ci) is None:
+    jugador = repo.obtener(conn, ci)
+    if jugador is None:
         raise HTTPException(status_code=404, detail="El jugador no existe.")
+    if jugador["tiene_plantel"] and datos.id_facultad != jugador["id_facultad"]:
+        raise HTTPException(status_code=400, detail="No se puede cambiar la facultad: el jugador tiene un plantel de otra facultad.")
+    if datos.tipo != jugador["tipo"] and datos.tipo in ("docente", "funcionario") and jugador["cupo_docentes_completo"]:
+        raise HTTPException(status_code=400, detail="El cambio de tipo supera el máximo de 2 docentes o funcionarios en un plantel.")
     validar_facultad(conn, datos.id_facultad)
     return repo.actualizar(conn, ci, datos.model_dump())
 

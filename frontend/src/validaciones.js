@@ -79,3 +79,74 @@ export function validarCancha(valores) {
   }
   return errores
 }
+
+export const ESTADOS_TORNEO = ['inscripción', 'en curso', 'finalizado']
+
+export function validarTorneo(valores, original, equipos, torneos) {
+  const errores = {}
+  if (!valores.nombre.trim() || valores.nombre.trim().length > 100) {
+    errores.nombre = 'Ingresá un nombre de hasta 100 caracteres.'
+  }
+  const anio = Number(valores.anio)
+  const semestre = Number(valores.semestre)
+  if (!Number.isInteger(anio) || anio < 2000 || anio > 2100) {
+    errores.anio = 'Ingresá un año entre 2000 y 2100.'
+  }
+  if (![1, 2].includes(semestre)) {
+    errores.semestre = 'Seleccioná el semestre.'
+  }
+  if (!valores.fecha_inicio || Number(valores.fecha_inicio.slice(0, 4)) !== anio) {
+    errores.fecha_inicio = 'El inicio debe pertenecer al año de la edición.'
+  }
+  if (!valores.fecha_fin || valores.fecha_fin <= valores.fecha_inicio) {
+    errores.fecha_fin = 'El fin debe ser posterior al inicio.'
+  }
+  for (const torneo of torneos) {
+    if (torneo.id_torneo !== original?.id_torneo && torneo.anio === anio && torneo.semestre === semestre) {
+      errores.semestre = 'Ya existe una edición para ese año y semestre.'
+    }
+  }
+  const anterior = original ? ESTADOS_TORNEO.indexOf(original.estado) : 0
+  const nuevo = ESTADOS_TORNEO.indexOf(valores.estado)
+  if (nuevo < anterior || nuevo > anterior + 1 || nuevo < 0 || (!original && nuevo !== 0)) {
+    errores.estado = 'Los estados avanzan de inscripción a en curso y luego a finalizado.'
+  }
+  if (original?.estado === 'inscripción' && valores.estado === 'en curso') {
+    for (const equipo of equipos) {
+      if (equipo.id_torneo === original.id_torneo &&
+          (equipo.cantidad_jugadores < 5 || equipo.cantidad_jugadores > 10 || !equipo.ci_capitan)) {
+        errores.estado = 'Todos los equipos deben tener entre 5 y 10 jugadores y un capitán.'
+      }
+    }
+  }
+  return errores
+}
+
+export function validarEquipo(valores, torneos, facultades, equipos, idEquipo) {
+  const errores = {}
+  if (!valores.nombre.trim() || valores.nombre.trim().length > 60) {
+    errores.nombre = 'Ingresá un nombre de hasta 60 caracteres.'
+  }
+  const torneo = torneos.find((t) => t.id_torneo === Number(valores.id_torneo))
+  if (!torneo) {
+    errores.id_torneo = 'Seleccioná una edición.'
+  } else if (!idEquipo && torneo.estado !== 'inscripción') {
+    errores.id_torneo = 'La edición debe estar en inscripción.'
+  }
+  if (!facultades.some((f) => f.id_facultad === Number(valores.id_facultad))) {
+    errores.id_facultad = 'Seleccioná una facultad.'
+  }
+  for (const equipo of equipos) {
+    if (equipo.id_equipo !== idEquipo && equipo.id_torneo === Number(valores.id_torneo) &&
+        equipo.nombre.toLocaleLowerCase() === valores.nombre.trim().toLocaleLowerCase()) {
+      errores.nombre = 'Ya existe un equipo con ese nombre en la edición.'
+    }
+  }
+  return errores
+}
+
+export function validarCamiseta(numero, plantel, ci) {
+  if (!Number.isInteger(Number(numero)) || Number(numero) < 1 || Number(numero) > 99) return 'Ingresá un número entre 1 y 99.'
+  if (plantel.some((j) => j.ci_jugador !== ci && j.numero_camiseta === Number(numero))) return 'Ese número ya lo usa otro jugador del equipo.'
+  return ''
+}

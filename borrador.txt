@@ -1,10 +1,84 @@
-frontend/src/validaciones.js: rechazamos nombres de cancha con / en la validación del formulario.
-backend/app/schemas/complejos.py: rechazamos nombres de cancha con / en CanchaIn, para altas y modificaciones.
-db/init/01_schema.sql: agregamos chk_cancha_nombre_sin_barra para impedir / también desde SQL.
-backend/app/errores.py: agregamos el mensaje en español para la nueva restricción.
-borrador.txt: registramos los cambios y las verificaciones.
-No agregamos nada al main ni implementamos equipos y planteles. Solo corregimos la validación de canchas del PR anterior.
-Pruebas: cuatro casos en validarCancha y los mismos cuatro en CanchaIn: Cancha 1 aceptado; Cancha/1, / y espacios rechazados. Pydantic disponible en el entorno: 2.14.1; la versión del proyecto es 2.10.3.
-Verificamos la sintaxis de los dos archivos Python modificados y git diff --check.
-No pudimos ejecutar las pruebas de MySQL, endpoints y UI: Docker Desktop no tiene el motor disponible y falta .env. No cambiamos configuración.
-Pendiente al levantar Docker con la configuración del proyecto: comprobar que INSERT y UPDATE de cancha con / fallen por chk_cancha_nombre_sin_barra y que un nombre válido permita alta, edición y baja.
+Archivos modificados
+
+db/init/01_schema.sql: agregamos controles de inscripción, facultad, máximo de jugadores y cupo de docentes o funcionarios. Ampliamos los triggers existentes de jugador y de actualización del plantel. Agregamos controles de equipo y de avance de estados del torneo.
+db/init/03_datos_maestros.sql: conservamos el equipo 1 y agregamos los equipos 2 a 8, sus planteles y capitanes. Quedan seis equipos en la edición 2 y dos en la edición 1, ambas en inscripción.
+backend/app/repos/torneos.py: agregamos SQL parametrizado para listar, obtener, crear, editar y borrar ediciones.
+backend/app/repos/equipos.py: agregamos SQL parametrizado de equipos, planteles, camisetas e inscripción por edición.
+backend/app/repos/jugadores.py: agregamos los datos para bloquear cambios de facultad y tipo, y el filtro de jugadores libres en una edición.
+backend/app/routers/torneos.py: agregamos CRUD y validación del avance de estados y de los planteles al iniciar.
+backend/app/routers/equipos.py: agregamos CRUD de equipos, inscripción y baja del plantel, y cambio de camiseta.
+backend/app/routers/jugadores.py: agregamos validaciones antes de cambiar facultad o tipo y el filtro opcional de edición.
+backend/app/schemas/torneos.py: agregamos modelos Pydantic para nombre, año, semestre, fechas y estado.
+backend/app/schemas/equipos.py: agregamos modelos Pydantic de equipo, capitán, inscripción, camiseta y salida del plantel.
+backend/app/schemas/jugadores.py: agregamos tiene_plantel y cupo_docentes_completo a la respuesta.
+backend/app/errores.py: agregamos mensajes en español para las restricciones de torneos, equipos y planteles.
+backend/app/main.py: registramos los routers de torneos y equipos.
+frontend/src/pages/TorneosPage.jsx: agregamos listado, alta, edición, baja y avance de estados con errores por campo.
+frontend/src/pages/EquiposPage.jsx: agregamos listado con filtro por edición, CRUD, plantel, camisetas y capitán. Fuera de inscripción el plantel queda en consulta.
+frontend/src/pages/JugadoresPage.jsx: bloqueamos la facultad cuando tiene plantel y los tipos docente o funcionario cuando completarían un tercer integrante de esos tipos.
+frontend/src/validaciones.js: agregamos validaciones de torneo, equipo y camiseta.
+frontend/src/App.jsx: conectamos las páginas nuevas.
+frontend/src/menu.js: agregamos Torneos al menú del administrador.
+docs/informe.md: actualizamos las reglas implementadas y explicamos los permisos utilizados.
+docs/supuestos.md: agregamos las decisiones sobre mínimo de jugadores al iniciar, avance de estados e inscripción de equipos.
+docs/bitacora.md: agregamos la entrada del ABM de torneos, equipos y planteles.
+.ai/PROGRESS.md: agregamos el estado, decisiones, pruebas y pendientes para continuar el trabajo. Es un repositorio separado.
+borrador.txt: reemplazamos el resumen anterior por los archivos y pruebas de este ABM, más el texto para el PR.
+
+Main
+
+Agregamos los imports y el registro de los routers de torneos y equipos. No agregamos ejemplos ni funcionalidades ajenas al ABM.
+
+Verificación
+
+Recreamos la base con Docker y compilamos el frontend con Vite. Verificamos la sintaxis Python y git diff --check. Agrupamos las pruebas de SQL y HTTP en cinco escenarios, con las operaciones por regla detalladas abajo. También probamos los formularios en el navegador. Conservamos el esquema de permisos existente porque no creamos tablas, vistas ni procedimientos.
+
+Texto para el PR
+
+Título propuesto
+feat(equipos): ABM de torneos, equipos y planteles con validaciones
+
+Qué cambia
+
+Agregamos las pantallas y endpoints para administrar ediciones, equipos, planteles, camisetas y capitanes. Validamos inscripción, facultad, cupos y avance de estados en formulario, back y base. Cerramos el caso que permitía romper las reglas al cambiar la facultad o el tipo de un jugador inscripto. Conservamos las claves y cascadas de los ADR 0003, 0004 y 0007.
+
+Dejamos seis equipos válidos en la edición 2 y dos en la edición 1. No finalizamos la edición 2 ni agregamos partidos. Decidimos exigir el mínimo de cinco y capitán al iniciar la edición; mientras cargamos el plantel puede tener menos de cinco. Las ediciones pasan por los tres estados en orden.
+
+Cómo lo probamos
+
+1. Facultad y datos iniciales.
+GET /equipos?id_torneo=2 devolvió seis equipos, todos con 5 a 10 jugadores, capitán y como máximo dos docentes o funcionarios.
+Intentamos inscribir a 50000135, de facultad 2, en el equipo 1, de facultad 1: POST /equipos/1/jugadores devolvió 400, Todos los jugadores deben ser de la facultad del equipo. El INSERT equivalente dio SIGNAL 45000.
+Intentamos cambiar la facultad de 50000000 y la del equipo 1 a facultad 2: ambos PUT devolvieron 400 y ambos UPDATE directos dieron SIGNAL 45000 con el mensaje de facultad.
+
+2. Cupos, camisetas e inscripción por edición.
+El equipo 2 ya tiene un docente y un funcionario. Intentamos cambiar a 50000050 a docente: PUT /jugadores/50000050 devolvió 400, El cambio de tipo supera el máximo de 2 docentes o funcionarios en un plantel. El UPDATE directo dio SIGNAL 45000.
+Cambiamos temporalmente a la jugadora libre 1234561 a docente e intentamos agregarla al equipo 2: HTTP 400 y SIGNAL 45000, El plantel admite como máximo 2 docentes o funcionarios. También intentamos reemplazar la CI de un integrante del plantel con esa jugadora mediante UPDATE y obtuvimos el mismo SIGNAL. Restauramos su tipo original.
+En una edición temporal agregamos diez jugadores de facultad 1 a un equipo. El jugador once se rechazó con HTTP 400 y SIGNAL 45000, El plantel admite como máximo 10 jugadores.
+Intentamos repetir 50000000 en otro equipo de la misma edición: HTTP 409 y UNIQUE uq_ejt_jugador_torneo. Pudimos inscribirlo en una edición distinta.
+Intentamos repetir camiseta: HTTP 409 y UNIQUE uq_ejt_camiseta. La camiseta 0 dio HTTP 422 y CHECK chk_ejt_camiseta. Una camiseta libre se guardó con HTTP 200.
+Intentamos mover de equipo mediante UPDATE: SIGNAL 45000, Hay que sacarlo e inscribirlo de nuevo. Un INSERT con id_torneo distinto al del equipo falló por fk_ejt_equipo.
+
+3. Capitán, inicio y estados.
+Intentamos elegir como capitán a un jugador ajeno al plantel: HTTP 400 y fk_equipo_capitan en SQL. Intentamos sacar al capitán actual: HTTP 409, Antes de sacar al capitán hay que elegir otro capitán; SQL lo rechazó por la misma FK.
+Quitamos temporalmente el capitán del equipo 1 e intentamos iniciar la edición 2: SIGNAL 45000, Para iniciar la edición todos los equipos deben tener entre 5 y 10 jugadores y un capitán. Repetimos con el capitán presente pero dejando cuatro jugadores y obtuvimos el mismo error. Deshicimos ambos cambios.
+El inicio de una edición con un equipo vacío dio HTTP 400. Con plantel válido y capitán, el avance a en curso dio HTTP 200 y funcionó en SQL.
+Con la edición en curso, probamos INSERT, UPDATE de camiseta y DELETE del plantel: todos dieron HTTP 400 y SIGNAL 45000, El plantel solo se puede modificar durante la inscripción. El cambio de capitán también quedó bloqueado en SQL.
+Probamos inscripción a finalizado, en curso a inscripción y finalizado a en curso: SQL los rechazó. El retroceso por HTTP dio 400, Los estados deben avanzar de inscripción a en curso y luego a finalizado. El avance de en curso a finalizado funcionó. Crear una edición directamente en curso se rechazó en SQL.
+Como regresión, cambiamos temporalmente la CI 50000000 a 60000008: el cambio llegó al plantel y al capitán en sus dos ediciones. Deshicimos la transacción.
+
+4. CRUD y formularios.
+Creamos una edición temporal con POST /torneos, un equipo y su plantel. Guardamos el capitán, cambiamos una camiseta y retiramos un jugador que no era capitán. Obtuvimos 201, 200 y 204 según la operación. Editamos y borramos un equipo vacío y borramos una edición vacía.
+Una segunda edición para el mismo año y semestre dio 409. Una fecha de fin anterior al inicio dio 422.
+En el navegador creamos un equipo, inscribimos y sacamos a Valeria con confirmación, cambiamos una camiseta y el capitán. La camiseta repetida mostró el error por campo. El selector de jugadores mostró solo los libres de la facultad y edición. Al intentar iniciar una edición con un equipo vacío, el formulario mostró Todos los equipos deben tener entre 5 y 10 jugadores y un capitán. El selector de estado no permitió saltar a finalizado.
+En Jugadores comprobamos la facultad bloqueada y las opciones Docente y Funcionario deshabilitadas para 50000050, cuyo plantel ya tiene dos integrantes de esos tipos. En un plantel finalizado comprobamos el modo consulta.
+
+5. Permisos y bajas protegidas.
+El planillero obtuvo 403 en GET /torneos, /equipos y /equipos/1/jugadores. Borrar el equipo 1 con plantel o la edición 2 con equipos dio 409 con mensajes en español. Consultar un equipo inexistente dio 404.
+
+Restauramos los datos de prueba al finalizar las verificaciones. La edición 2 queda en inscripción con sus seis equipos y la jugadora 1234561 queda libre.
+
+Commit propuesto
+feat(equipos): ABM de torneos, equipos y planteles con validaciones
+
+No hicimos commit ni push de esta funcionalidad. El humano revisa, commitea, pushea y pega el texto de pruebas en el PR.

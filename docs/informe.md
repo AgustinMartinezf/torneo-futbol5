@@ -85,13 +85,14 @@ valida el front y el back.
 | Una cancha no cambia de complejo | `trg_cancha_no_cambiar_complejo` (S-15) | implementada |
 | No borrar un complejo con canchas ni una cancha con partidos | `fk_cancha_complejo`, `fk_partido_cancha` (RESTRICT) | implementada |
 | Capitán es jugador de su plantel | `fk_equipo_capitan` | implementada |
-| Equipo con capitán al pasar a `en curso` | trigger | pendiente, ABM de equipos |
-| Máx. 2 docentes/funcionarios por plantel | trigger | pendiente, ABM de equipos |
-| Plantel de 5 a 10 jugadores | trigger | pendiente, ABM de equipos y de partidos |
-| Jugadores de la facultad del equipo | trigger | pendiente, ABM de equipos |
+| Equipo con capitán al pasar a `en curso` | `trg_torneo_validar_update` | implementada |
+| Máx. 2 docentes/funcionarios por plantel | triggers del plantel y `trg_jugador_validar_update` | implementada |
+| Máx. 10 jugadores; mínimo 5 al iniciar la edición | `trg_ejt_validar_insert`, `trg_torneo_validar_update` | implementada |
+| Jugadores de la facultad del equipo | triggers del plantel, de jugador y de equipo | implementada |
 | Un jugador en un solo equipo por edición | `uq_ejt_jugador_torneo` + `fk_ejt_equipo` | implementada |
 | Un jugador no se cambia de equipo con un UPDATE (se saca y se inscribe de nuevo) | `trg_ejt_no_cambiar_equipo` | implementada |
-| Planteles modificables solo en `inscripción` | trigger | pendiente, ABM de equipos |
+| Planteles modificables solo en `inscripción` | `trg_ejt_validar_insert`, `trg_ejt_no_cambiar_equipo`, `trg_ejt_validar_delete` | implementada |
+| Estados de la edición avanzan en orden | `trg_torneo_validar_insert`, `trg_torneo_validar_update` (S-16) | implementada |
 | Partido: ambos equipos de la misma edición | `fk_partido_local`, `fk_partido_visitante` | implementada |
 | Partido: equipos con ≥ 5 jugadores | trigger | pendiente, ABM de partidos |
 | No enfrentarse a sí mismo | `chk_partido_equipos_distintos` | implementada |
@@ -111,6 +112,9 @@ valida el front y el back.
 | Roles administrador / planillero | ENUM en `login`; usuarios de BD `app_admin` y `app_planillero` | implementada |
 
 ### 3.3 Seguridad (usuarios de base de datos y roles de la aplicación)
+En el ABM de torneos, equipos y planteles usamos la conexión del administrador. Los dos usuarios ya tenían
+permisos sobre estas tablas, así que no agregamos tablas, vistas ni permisos nuevos.
+
 La seguridad la pusimos en dos lugares. En la aplicación, cada cuenta de `login` tiene un rol (administrador o
 planillero) y la contraseña se guarda como hash bcrypt. En la base creamos un usuario de MySQL por rol, y el backend usa
 la conexión del rol de quien inició sesión. Así, aunque el back tuviera un error, la base no deja que un planillero

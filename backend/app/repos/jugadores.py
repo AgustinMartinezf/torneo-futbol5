@@ -1,13 +1,22 @@
 _SELECT = (
     "SELECT j.ci, j.nombre, j.apellido, j.email, j.fecha_nacimiento, "
-    "j.id_facultad, j.tipo, f.nombre AS facultad "
+    "j.id_facultad, j.tipo, f.nombre AS facultad, "
+    "EXISTS (SELECT 1 FROM equipo_jugador_torneo propio WHERE propio.ci_jugador = j.ci) AS tiene_plantel, "
+    "EXISTS (SELECT 1 FROM equipo_jugador_torneo propio "
+    "WHERE propio.ci_jugador = j.ci AND ("
+    "SELECT COUNT(*) FROM equipo_jugador_torneo otro JOIN jugador companero ON companero.ci = otro.ci_jugador "
+    "WHERE otro.id_equipo = propio.id_equipo AND otro.ci_jugador <> j.ci "
+    "AND companero.tipo IN ('docente', 'funcionario')) >= 2) AS cupo_docentes_completo "
     "FROM jugador j JOIN facultad f ON f.id_facultad = j.id_facultad"
 )
 
 
-def listar(conn, id_facultad: int | None, tipo: str | None, busqueda: str | None) -> list[dict]:
+def listar(conn, id_facultad: int | None, tipo: str | None, busqueda: str | None, id_torneo: int | None = None) -> list[dict]:
     partes = [_SELECT, "WHERE 1 = 1"]
     parametros = []
+    if id_torneo is not None:
+        partes.append("AND NOT EXISTS (SELECT 1 FROM equipo_jugador_torneo ejt WHERE ejt.ci_jugador = j.ci AND ejt.id_torneo = %s)")
+        parametros.append(id_torneo)
     if id_facultad is not None:
         partes.append("AND j.id_facultad = %s")
         parametros.append(id_facultad)
