@@ -59,6 +59,7 @@ MENSAJES = {
     "chk_complejo_direccion": "La dirección del complejo es obligatoria.",
     "fk_cancha_complejo": "El complejo indicado no existe.",
     "chk_cancha_nombre": "El nombre de la cancha es obligatorio.",
+    "chk_cancha_nombre_sin_barra": 'El nombre de la cancha no puede contener "/".',
     "cancha.PRIMARY": "Ya existe una cancha con ese nombre en el complejo.",
     "uq_partido_cancha_turno": "La cancha ya tiene un partido ese día y en ese turno.",
     "uq_partido_cruce": "Esos equipos ya tienen un partido en la edición.",

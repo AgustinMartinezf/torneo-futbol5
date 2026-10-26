@@ -215,6 +215,7 @@ CREATE TABLE cancha (
     CONSTRAINT fk_cancha_complejo FOREIGN KEY (id_complejo)
         REFERENCES complejo (id_complejo) ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT chk_cancha_nombre CHECK (CHAR_LENGTH(TRIM(nombre_cancha)) > 0),
+    CONSTRAINT chk_cancha_nombre_sin_barra CHECK (LOCATE('/', nombre_cancha) = 0),
     CONSTRAINT chk_cancha_techada CHECK (techada IN (0, 1))  -- BOOLEAN es TINYINT(1) y aceptaría un 5
 ) ENGINE = InnoDB;
 

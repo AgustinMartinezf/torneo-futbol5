@@ -71,6 +71,8 @@ export function validarCancha(valores) {
   const errores = {}
   if (!valores.nombre_cancha.trim() || valores.nombre_cancha.trim().length > 50) {
     errores.nombre_cancha = 'Ingresá un nombre de hasta 50 caracteres.'
+  } else if (valores.nombre_cancha.includes('/')) {
+    errores.nombre_cancha = 'El nombre de la cancha no puede contener "/".'
   }
   if (!SUPERFICIES.includes(valores.superficie)) {
     errores.superficie = 'Seleccioná una superficie.'

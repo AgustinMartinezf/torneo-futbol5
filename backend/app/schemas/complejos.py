@@ -42,6 +42,8 @@ class CanchaIn(BaseModel):
         valor = valor.strip()
         if not valor:
             raise ValueError("El nombre de la cancha es obligatorio.")
+        if "/" in valor:
+            raise ValueError('El nombre de la cancha no puede contener "/".')
         return valor
 
 
