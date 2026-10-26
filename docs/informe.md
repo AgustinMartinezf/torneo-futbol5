@@ -112,9 +112,6 @@ valida el front y el back.
 | Roles administrador / planillero | ENUM en `login`; usuarios de BD `app_admin` y `app_planillero` | implementada |
 
 ### 3.3 Seguridad (usuarios de base de datos y roles de la aplicación)
-En el ABM de torneos, equipos y planteles usamos la conexión del administrador. Los dos usuarios ya tenían
-permisos sobre estas tablas, así que no agregamos tablas, vistas ni permisos nuevos.
-
 La seguridad la pusimos en dos lugares. En la aplicación, cada cuenta de `login` tiene un rol (administrador o
 planillero) y la contraseña se guarda como hash bcrypt. En la base creamos un usuario de MySQL por rol, y el backend usa
 la conexión del rol de quien inició sesión. Así, aunque el back tuviera un error, la base no deja que un planillero
