@@ -1,8 +1,4 @@
-"""Acceso a MySQL SIN ORM: conexiones y helpers para ejecutar SQL parametrizado.
-
-Hay una conexión por rol para respetar los permisos definidos a nivel de base de datos
-(usuarios app_admin y app_planillero, ver db/init/02_usuarios.sql).
-"""
+"""Una conexión por rol, para que valgan los permisos de db/init/02_usuarios.sql."""
 import os
 from contextlib import contextmanager
 
@@ -35,9 +31,6 @@ def get_conn(rol: str = "administrador"):
 
 
 def conexion_del_usuario(usuario: Usuario = Depends(usuario_actual)):
-    """Dependencia de FastAPI: conexión con el usuario de MySQL del rol que viene en el token.
-
-    Si el endpoint no hace commit, al cerrar la conexión MySQL deshace los cambios.
-    """
+    """Si el endpoint no hace commit, al cerrar la conexión MySQL deshace los cambios."""
     with get_conn(usuario.rol) as conn:
         yield conn

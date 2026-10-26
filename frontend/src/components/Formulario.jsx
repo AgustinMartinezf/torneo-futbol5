@@ -1,5 +1,4 @@
-// Formulario con el error general (por ejemplo el detail del back) y el botón de enviar.
-// La validación del front la hace cada página antes de llamar al back.
+// No valida: cada página valida antes de llamar al back y pasa los errores a cada Campo.
 export default function Formulario({ onSubmit, error, enviando, textoBoton = 'Guardar', onCancelar, children }) {
   function enviar(e) {
     e.preventDefault()
@@ -18,7 +17,6 @@ export default function Formulario({ onSubmit, error, enviando, textoBoton = 'Gu
   )
 }
 
-// Campo con etiqueta y el error de validación de ese campo.
 export function Campo({ etiqueta, nombre, error, tipo = 'text', valor, onChange, ...resto }) {
   return (
     <div className="campo">

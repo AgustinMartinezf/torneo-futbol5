@@ -1,7 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext.js'
 
-// Sin sesión manda al login. Con roles, solo deja pasar a esos roles.
 export default function RutaProtegida({ roles }) {
   const { sesion } = useAuth()
 

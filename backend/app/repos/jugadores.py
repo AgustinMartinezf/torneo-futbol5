@@ -1,5 +1,3 @@
-"""Consultamos jugadores con filtros opcionales y parámetros."""
-
 _SELECT = (
     "SELECT j.ci, j.nombre, j.apellido, j.email, j.fecha_nacimiento, "
     "j.id_facultad, j.tipo, f.nombre AS facultad "

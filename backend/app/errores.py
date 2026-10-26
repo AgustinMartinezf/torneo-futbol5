@@ -1,9 +1,6 @@
-"""Traducción de los errores de MySQL a respuestas HTTP con un detail en español.
+"""Traduce los errores de MySQL a un detail en español, buscando el nombre de la constraint.
 
-La base rechaza los datos inválidos con el nombre de una constraint (pk_, uq_, fk_, chk_)
-o con un SIGNAL SQLSTATE '45000' desde un trigger o procedimiento, que ya trae el mensaje.
-Acá buscamos el nombre de la constraint y devolvemos un mensaje que entienda el usuario.
-Cada funcionalidad agrega a MENSAJES las constraints que puede disparar.
+Cada funcionalidad agrega a MENSAJES las constraints que puede disparar. Un SIGNAL 45000 ya trae su mensaje.
 """
 import logging
 import re
@@ -15,7 +12,6 @@ from fastapi.responses import JSONResponse
 
 log = logging.getLogger(__name__)
 
-# Códigos de error de MySQL que traducimos.
 ER_SIGNAL = 1644
 ER_DUPLICADO = 1062
 ER_FK_PADRE_EN_USO = 1451
@@ -59,6 +55,11 @@ MENSAJES = {
     "uq_ejt_camiseta": "Ese número de camiseta ya lo usa otro jugador del equipo.",
     "chk_ejt_camiseta": "El número de camiseta tiene que estar entre 1 y 99.",
     "uq_complejo_nombre": "Ya existe un complejo con ese nombre.",
+    "chk_complejo_nombre": "El nombre del complejo es obligatorio.",
+    "chk_complejo_direccion": "La dirección del complejo es obligatoria.",
+    "fk_cancha_complejo": "El complejo indicado no existe.",
+    "chk_cancha_nombre": "El nombre de la cancha es obligatorio.",
+    "chk_cancha_nombre_sin_barra": 'El nombre de la cancha no puede contener "/".',
     "cancha.PRIMARY": "Ya existe una cancha con ese nombre en el complejo.",
     "uq_partido_cancha_turno": "La cancha ya tiene un partido ese día y en ese turno.",
     "uq_partido_cruce": "Esos equipos ya tienen un partido en la edición.",
@@ -68,14 +69,13 @@ MENSAJES = {
     "planilla_partido.PRIMARY": "El jugador ya figura en la planilla del partido.",
 }
 
-# Una FK da dos errores distintos: el dato al que apunta no existe (1452, usa MENSAJES)
-# o se quiere borrar un dato que otros usan (1451, usa este diccionario).
+# Para una FK, el 1452 (el dato no existe) usa MENSAJES y el 1451 (el dato está en uso) usa este.
 MENSAJES_EN_USO = {
     "fk_jugador_facultad": "No se puede borrar la facultad porque tiene jugadores.",
     "fk_equipo_facultad": "No se puede borrar la facultad porque tiene equipos.",
     "fk_equipo_torneo": "No se puede borrar la edición porque tiene equipos.",
     "fk_partido_torneo": "No se puede borrar la edición porque tiene partidos.",
-    "fk_cancha_complejo": "No se puede borrar el complejo porque tiene canchas.",
+    "fk_cancha_complejo": "No se puede borrar el complejo porque tiene canchas. Borrá primero sus canchas.",
     "fk_partido_cancha": "No se puede borrar la cancha porque tiene partidos.",
     "fk_partido_local": "No se puede borrar el equipo porque tiene partidos.",
     "fk_partido_visitante": "No se puede borrar el equipo porque tiene partidos.",
@@ -113,7 +113,6 @@ def _mensaje_de_constraint(nombre: str | None, por_defecto: str, mensajes: dict 
 
 
 def traducir_error_mysql(error: mysql.connector.Error) -> tuple[int, str]:
-    """Devuelve el status HTTP y el detail para un error de MySQL."""
     errno = error.errno
     nombre = _nombre_en_mensaje(error)
 

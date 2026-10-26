@@ -1,7 +1,4 @@
-"""SQL del login.
-
-Se usa siempre con la conexión de app_admin: app_planillero no tiene SELECT sobre login.
-"""
+"""Se usa siempre con la conexión de app_admin: app_planillero no tiene SELECT sobre login."""
 
 
 def buscar_login(conn, correo: str) -> dict | None:

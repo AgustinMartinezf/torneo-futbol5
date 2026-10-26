@@ -24,6 +24,8 @@ están las preguntas que tenemos para el docente.
 | S-11 | Mientras dura la inscripción, un equipo puede no tener capitán (`ci_capitan` en NULL). Lo exigimos cuando el torneo pasa a `en curso`. | ADR 0004, trigger del ABM de equipos |
 | S-12 | Las columnas `contraseña` y `dirección` de la letra las llamamos `contrasena` y `direccion`, sin ñ ni tilde, para no tener problemas en el SQL. Las demás se llaman igual que en la letra. | `login`, `complejo` |
 | S-13 | Tomamos entre 16 y 120 años como edad razonable para un jugador. | Formulario de jugadores, Pydantic y triggers de `jugador` |
+| S-14 | Los turnos son los cinco de la letra (18 a 23) y no cambian, así que no tienen ABM: solo se listan. | `GET /turnos`, `app_admin` solo con SELECT en `turno` |
+| S-15 | Una cancha no se cambia de complejo. Si se la pudiera mover, por el ON UPDATE CASCADE también cambiaría el lugar de los partidos que ya se jugaron. Sí se le puede cambiar el nombre. | `trg_cancha_no_cambiar_complejo`, ABM de canchas |
 
 ## Preguntas para el docente
 1. (S-03) ¿Una facultad puede inscribir más de un equipo en la misma edición? Hoy el modelo lo permite.

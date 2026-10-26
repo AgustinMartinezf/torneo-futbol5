@@ -1,6 +1,5 @@
--- Datos maestros y de prueba (facultades, turnos, complejos, jugadores, equipos, partidos...).
--- Cada funcionalidad agrega acá los datos que necesita para probarse.
--- Requisito de la letra: al menos 6 equipos y 3 fechas disputadas.
+-- Datos maestros y de prueba. Cada funcionalidad agrega los que necesita para probarse.
+-- La letra pide al menos 6 equipos y 3 fechas disputadas.
 SET NAMES utf8mb4;
 USE torneo_futbol5;
 
@@ -18,26 +17,28 @@ INSERT INTO turno (id_turno, hora_inicio, hora_fin) VALUES
     (4, '21:00:00', '22:00:00'),
     (5, '22:00:00', '23:00:00');
 
--- Los complejos y las personas son datos ficticios para probar la aplicación.
+-- Los complejos y las personas son datos ficticios.
+-- El complejo 3 no tiene canchas y la Cancha 3 del complejo 1 no tiene partidos: sirven
+-- para probar las bajas permitidas.
 INSERT INTO complejo (id_complejo, nombre, direccion, departamento) VALUES
     (1, 'Complejo del Parque', 'Calle del Parque 1200', 'Montevideo'),
-    (2, 'Complejo del Lago', 'Calle del Lago 800', 'Canelones');
+    (2, 'Complejo del Lago', 'Calle del Lago 800', 'Canelones'),
+    (3, 'Complejo de la Costa', 'Rambla Costanera 450', 'Maldonado');
 
 INSERT INTO cancha (nombre_cancha, id_complejo, superficie, techada) VALUES
     ('Cancha 1', 1, 'sintético', 0),
     ('Cancha 2', 1, 'parquet', 1),
     ('Cancha 1', 2, 'sintético', 1),
-    ('Cancha 2', 2, 'parquet', 1);
+    ('Cancha 2', 2, 'parquet', 1),
+    ('Cancha 3', 1, 'sintético', 0);
 
 INSERT INTO torneo (id_torneo, nombre, anio, semestre, fecha_inicio, fecha_fin, estado) VALUES
     (1, 'Interfacultades 2026 segundo semestre', 2026, 2, '2026-10-19', '2026-11-30', 'inscripción'),
     (2, 'Interfacultades 2026 primer semestre', 2026, 1, '2026-03-02', '2026-06-30', 'inscripción');
--- La edición 2 tiene fechas pasadas para poder cargar partidos jugados, planillas y
--- sanciones y probar los reportes. Arranca en inscripción porque los planteles solo
--- se cargan en esa etapa. Cuando tenga equipos, partidos y planillas, al final de
--- este archivo se pasa a 'finalizado'.
+-- La edición 2 tiene fechas pasadas para cargar partidos jugados y probar los reportes.
+-- Arranca en inscripción para poder cargarle planteles; al final del archivo pasa a 'finalizado'.
 
--- Guardamos hashes bcrypt con costo 12. Las claves de prueba están en el README.
+-- Hashes bcrypt con costo 12. Las claves de prueba están en el README.
 INSERT INTO login (correo, contrasena, rol) VALUES
     ('admin@torneo.example', '$2b$12$hcwnqBWaAq7DLKVnwJBWPOt8Urz/kvaiJl.wyF183RjZvnmmbwWNC', 'administrador'),
     ('planillero@torneo.example', '$2b$12$uIiL0H25M/Abx1H1j7VuMO7sl52lbs7QCnwxup6xFSHsQfW7wpGHa', 'planillero');
@@ -97,11 +98,8 @@ INSERT INTO jugador (ci, nombre, apellido, email, fecha_nacimiento, id_facultad,
     ('50000511', 'Emilia', 'Fernández', 'jugador52@torneo.example', '1985-04-24', 4, 'funcionario'),
     ('1234561', 'Valeria', 'Suárez', 'jugador53@torneo.example', '2002-03-04', 1, 'grado');
 
--- La facultad 5 no tiene jugadores y Valeria no está en ningún plantel. Sirven
--- para probar bajas permitidas, además de las bajas que rechazan las FK.
-
--- Un plantel de cinco jugadores permite comprobar que la baja de un jugador
--- inscripto devuelve un conflicto y no borra su historia.
+-- La facultad 5 no tiene jugadores y Valeria no está en ningún plantel: sirven para
+-- probar bajas permitidas. El plantel de abajo sirve para probar las que rechazan las FK.
 INSERT INTO equipo (id_equipo, nombre, id_torneo, id_facultad, ci_capitan) VALUES
     (1, 'Ingeniería Verde', 2, 1, NULL);
 
