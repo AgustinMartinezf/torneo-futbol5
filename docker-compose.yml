@@ -7,8 +7,10 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       # Hora de Uruguay para NOW(): se usa para saber si un partido ya se jugó.
       TZ: America/Montevideo
+    # En la PC lo publicamos en 3307 para no chocar con un MySQL instalado localmente.
+    # La API se conecta por la red interna de Docker a db:3306, así que no cambia.
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - db_data:/var/lib/mysql
       # Los scripts corren solo al crear el volumen: para repetirlos, docker compose down -v.
