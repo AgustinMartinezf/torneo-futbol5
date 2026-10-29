@@ -29,6 +29,9 @@ están las preguntas que tenemos para el docente.
 | S-16 | Creamos las ediciones en inscripción y las pasamos a en curso y luego a finalizado, sin saltos ni retrocesos. Exigimos entre 5 y 10 jugadores y capitán por equipo al iniciar. | Triggers de `torneo`, back y formulario |
 | S-17 | Inscribimos y borramos equipos solo en inscripción. También limitamos a esa etapa los cambios de facultad, edición y capitán. El nombre puede corregirse después. | Triggers de `equipo`, back y formularios |
 | S-18 | No se puede cambiar la facultad de un jugador que estuvo en algún plantel, aunque la edición esté finalizada. Así no quedan planteles viejos con jugadores de otra facultad. | `trg_jugador_validar_update`, back y formulario de jugadores |
+| S-19 | Un partido se crea siempre como `programado`. Después puede pasar a `jugado` (si ya terminó su turno), `postergado` o `cancelado`. Uno postergado vuelve a `programado` cuando se reprograma o se cancela. Un partido jugado o cancelado ya no se modifica. | `trg_partido_validar_insert`, `trg_partido_validar_update`, back y formulario de partidos |
+| S-20 | Para la regla de un partido por equipo y fecha no cuentan los partidos cancelados, igual que para el cruce repetido. Así un partido cancelado se puede volver a jugar en la misma fecha. | Triggers de `partido`, back y formulario |
+| S-21 | Los equipos de un partido no se cambian si ya tiene planilla, porque los jugadores de la planilla quedarían con un equipo que no juega ese partido. | `trg_partido_validar_update`, back y formulario |
 
 Los planteles pueden tener menos de cinco jugadores mientras los cargamos durante la inscripción. Exigimos entre
 cinco y diez, con capitán, al pasar la edición a en curso. El máximo de diez y el cupo de docentes y funcionarios

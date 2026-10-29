@@ -460,6 +460,113 @@ END//
 DELIMITER ;
 
 
+-- Reglas para programar un partido que no entran en un UNIQUE o un CHECK (informe §3.2).
+-- Con la edición en curso los planteles ya no cambian y todos tienen 5 a 10 jugadores, pero igual lo chequeamos.
+-- Un partido cancelado no cuenta para la regla de un partido por equipo y fecha (S-20).
+DELIMITER //
+CREATE TRIGGER trg_partido_validar_insert
+BEFORE INSERT ON partido
+FOR EACH ROW
+BEGIN
+    IF NEW.estado <> 'programado' THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Un partido nuevo se crea como programado.';
+    END IF;
+    IF (SELECT estado FROM torneo WHERE id_torneo = NEW.id_torneo) <> 'en curso' THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Solo se pueden programar partidos de una edición en curso.';
+    END IF;
+    IF (SELECT COUNT(*) FROM equipo_jugador_torneo WHERE id_equipo = NEW.id_equipo_local) < 5
+       OR (SELECT COUNT(*) FROM equipo_jugador_torneo WHERE id_equipo = NEW.id_equipo_visitante) < 5 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Los dos equipos deben tener al menos 5 jugadores en el plantel.';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM partido p
+        WHERE p.id_torneo = NEW.id_torneo AND p.numero_fecha = NEW.numero_fecha AND p.estado <> 'cancelado'
+          AND (p.id_equipo_local IN (NEW.id_equipo_local, NEW.id_equipo_visitante)
+               OR p.id_equipo_visitante IN (NEW.id_equipo_local, NEW.id_equipo_visitante))
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Un equipo no puede jugar más de un partido en la misma fecha del torneo.';
+    END IF;
+    IF NEW.dia < (SELECT fecha_inicio FROM torneo WHERE id_torneo = NEW.id_torneo)
+       OR NEW.dia > (SELECT fecha_fin FROM torneo WHERE id_torneo = NEW.id_torneo) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'El día del partido tiene que estar entre el inicio y el fin de la edición.';
+    END IF;
+END//
+
+-- Estados (S-01, S-19): programado pasa a jugado, postergado o cancelado; postergado vuelve a programado
+-- al reprogramarlo o se cancela. Jugado y cancelado ya no cambian. Para jugado usamos la misma condición
+-- que marcar_partido_jugado, así vale también cuando el administrador edita el partido.
+CREATE TRIGGER trg_partido_validar_update
+BEFORE UPDATE ON partido
+FOR EACH ROW
+BEGIN
+    IF OLD.estado IN ('jugado', 'cancelado') THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Un partido jugado o cancelado no se puede modificar.';
+    END IF;
+    IF NEW.id_torneo <> OLD.id_torneo THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'No se puede cambiar la edición de un partido.';
+    END IF;
+    IF NEW.estado <> OLD.estado AND NOT (
+        (OLD.estado = 'programado' AND NEW.estado IN ('jugado', 'postergado', 'cancelado'))
+        OR (OLD.estado = 'postergado' AND NEW.estado IN ('programado', 'cancelado'))
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Un partido programado pasa a jugado, postergado o cancelado, y uno postergado vuelve a programado o se cancela.';
+    END IF;
+    IF NEW.estado = 'jugado'
+       AND TIMESTAMP(NEW.dia, (SELECT hora_fin FROM turno WHERE id_turno = NEW.id_turno)) > NOW() THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'El partido todavía no se jugó: su turno no terminó.';
+    END IF;
+    IF (NEW.id_equipo_local <> OLD.id_equipo_local OR NEW.id_equipo_visitante <> OLD.id_equipo_visitante)
+       AND EXISTS (SELECT 1 FROM planilla_partido WHERE id_partido = OLD.id_partido) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'No se pueden cambiar los equipos de un partido que ya tiene planilla.';
+    END IF;
+    IF (SELECT estado FROM torneo WHERE id_torneo = NEW.id_torneo) <> 'en curso' THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Solo se pueden modificar partidos de una edición en curso.';
+    END IF;
+    IF (SELECT COUNT(*) FROM equipo_jugador_torneo WHERE id_equipo = NEW.id_equipo_local) < 5
+       OR (SELECT COUNT(*) FROM equipo_jugador_torneo WHERE id_equipo = NEW.id_equipo_visitante) < 5 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Los dos equipos deben tener al menos 5 jugadores en el plantel.';
+    END IF;
+    IF NEW.estado <> 'cancelado' AND EXISTS (
+        SELECT 1 FROM partido p
+        WHERE p.id_partido <> OLD.id_partido
+          AND p.id_torneo = NEW.id_torneo AND p.numero_fecha = NEW.numero_fecha AND p.estado <> 'cancelado'
+          AND (p.id_equipo_local IN (NEW.id_equipo_local, NEW.id_equipo_visitante)
+               OR p.id_equipo_visitante IN (NEW.id_equipo_local, NEW.id_equipo_visitante))
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Un equipo no puede jugar más de un partido en la misma fecha del torneo.';
+    END IF;
+    IF NEW.dia < (SELECT fecha_inicio FROM torneo WHERE id_torneo = NEW.id_torneo)
+       OR NEW.dia > (SELECT fecha_fin FROM torneo WHERE id_torneo = NEW.id_torneo) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'El día del partido tiene que estar entre el inicio y el fin de la edición.';
+    END IF;
+END//
+
+CREATE TRIGGER trg_partido_validar_delete
+BEFORE DELETE ON partido
+FOR EACH ROW
+BEGIN
+    IF OLD.estado = 'jugado' THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Un partido jugado no se puede eliminar.';
+    END IF;
+END//
+DELIMITER ;
+
+
 -- La FK compuesta al plantel asegura que el jugador sea de ese equipo. No hay FK directa
 -- a jugador: ya está implícita y abriría un segundo camino de cascada (ADR 0005).
 CREATE TABLE planilla_partido (

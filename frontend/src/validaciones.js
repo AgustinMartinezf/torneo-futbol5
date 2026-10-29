@@ -150,3 +150,71 @@ export function validarCamiseta(numero, plantel, ci) {
   if (plantel.some((j) => j.ci_jugador !== ci && j.numero_camiseta === Number(numero))) return 'Ese número ya lo usa otro jugador del equipo.'
   return ''
 }
+
+// Supuestos S-01 y S-19.
+export const TRANSICIONES_PARTIDO = {
+  programado: ['jugado', 'postergado', 'cancelado'],
+  postergado: ['programado', 'cancelado'],
+  jugado: [],
+  cancelado: [],
+}
+
+export function validarPartido(valores, original, torneos, equipos, turnos, partidos, ahora = new Date()) {
+  const errores = {}
+  const torneo = torneos.find((t) => t.id_torneo === Number(valores.id_torneo))
+  if (!torneo) {
+    errores.id_torneo = 'Seleccioná una edición.'
+  } else if (torneo.estado !== 'en curso') {
+    errores.id_torneo = 'La edición debe estar en curso.'
+  }
+  const fecha = Number(valores.numero_fecha)
+  if (!Number.isInteger(fecha) || fecha < 1 || fecha > 255) {
+    errores.numero_fecha = 'Ingresá un número de fecha entre 1 y 255.'
+  }
+  const local = equipos.find((e) => e.id_equipo === Number(valores.id_equipo_local))
+  const visitante = equipos.find((e) => e.id_equipo === Number(valores.id_equipo_visitante))
+  if (!local) errores.id_equipo_local = 'Seleccioná el equipo local.'
+  else if (local.cantidad_jugadores < 5) errores.id_equipo_local = 'El equipo tiene menos de 5 jugadores.'
+  if (!visitante) errores.id_equipo_visitante = 'Seleccioná el equipo visitante.'
+  else if (visitante.cantidad_jugadores < 5) errores.id_equipo_visitante = 'El equipo tiene menos de 5 jugadores.'
+  if (local && visitante && local.id_equipo === visitante.id_equipo) {
+    errores.id_equipo_visitante = 'Un equipo no puede jugar contra sí mismo.'
+  }
+  if (!valores.dia) {
+    errores.dia = 'Ingresá el día.'
+  } else if (torneo && (valores.dia < torneo.fecha_inicio || valores.dia > torneo.fecha_fin)) {
+    errores.dia = 'El día tiene que estar entre el inicio y el fin de la edición.'
+  }
+  const turno = turnos.find((t) => t.id_turno === Number(valores.id_turno))
+  if (!turno) errores.id_turno = 'Seleccioná un turno.'
+  if (!valores.id_complejo) errores.id_complejo = 'Seleccioná un complejo.'
+  if (!valores.nombre_cancha) errores.nombre_cancha = 'Seleccioná una cancha.'
+  const anterior = original?.estado ?? 'programado'
+  if (valores.estado !== anterior && !TRANSICIONES_PARTIDO[anterior].includes(valores.estado)) {
+    errores.estado = 'Ese cambio de estado no está permitido.'
+  }
+  if (valores.estado === 'jugado' && valores.dia && turno && new Date(`${valores.dia}T${turno.hora_fin}`) > ahora) {
+    errores.estado = 'El partido todavía no se jugó: su turno no terminó.'
+  }
+  for (const p of partidos) {
+    if (p.id_partido === original?.id_partido) continue
+    if (['programado', 'jugado'].includes(valores.estado) && ['programado', 'jugado'].includes(p.estado) &&
+        p.nombre_cancha === valores.nombre_cancha && p.id_complejo === Number(valores.id_complejo) &&
+        p.dia === valores.dia && p.id_turno === Number(valores.id_turno)) {
+      errores.nombre_cancha = 'La cancha ya tiene un partido ese día y en ese turno.'
+    }
+  }
+  if (valores.estado !== 'cancelado' && local && visitante) {
+    for (const p of partidos) {
+      if (p.id_partido === original?.id_partido || p.estado === 'cancelado' || p.id_torneo !== Number(valores.id_torneo)) continue
+      const equiposDelPartido = [p.id_equipo_local, p.id_equipo_visitante]
+      if (p.numero_fecha === fecha && (equiposDelPartido.includes(local.id_equipo) || equiposDelPartido.includes(visitante.id_equipo))) {
+        errores.numero_fecha = 'Uno de los equipos ya juega en esa fecha.'
+      }
+      if (equiposDelPartido.includes(local.id_equipo) && equiposDelPartido.includes(visitante.id_equipo)) {
+        errores.id_equipo_visitante = 'Esos equipos ya tienen un partido en la edición.'
+      }
+    }
+  }
+  return errores
+}
