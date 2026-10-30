@@ -173,3 +173,28 @@ UPDATE equipo SET ci_capitan = '50000260' WHERE id_equipo = 5;
 UPDATE equipo SET ci_capitan = '50000395' WHERE id_equipo = 6;
 UPDATE equipo SET ci_capitan = '50000000' WHERE id_equipo = 7;
 UPDATE equipo SET ci_capitan = '50000135' WHERE id_equipo = 8;
+
+UPDATE torneo SET estado = 'en curso' WHERE id_torneo = 2;
+
+-- Rueda completa de la edición 2: 5 fechas de 3 partidos. Se cargan como programados; el registro
+-- de planillas los marca como jugados. El 14 queda postergado y el 15 cancelado para los reportes.
+-- Las columnas generadas no se insertan.
+INSERT INTO partido (id_partido, id_torneo, numero_fecha, id_equipo_local, id_equipo_visitante, dia, id_turno, nombre_cancha, id_complejo) VALUES
+    (1, 2, 1, 1, 6, '2026-03-17', 1, 'Cancha 1', 1),
+    (2, 2, 1, 2, 5, '2026-03-17', 2, 'Cancha 1', 1),
+    (3, 2, 1, 3, 4, '2026-03-17', 1, 'Cancha 1', 2),
+    (4, 2, 2, 1, 5, '2026-04-07', 1, 'Cancha 2', 1),
+    (5, 2, 2, 6, 4, '2026-04-07', 2, 'Cancha 2', 1),
+    (6, 2, 2, 2, 3, '2026-04-07', 2, 'Cancha 2', 2),
+    (7, 2, 3, 1, 4, '2026-04-28', 3, 'Cancha 1', 1),
+    (8, 2, 3, 5, 3, '2026-04-28', 3, 'Cancha 1', 2),
+    (9, 2, 3, 6, 2, '2026-04-28', 4, 'Cancha 1', 1),
+    (10, 2, 4, 1, 3, '2026-05-19', 1, 'Cancha 1', 1),
+    (11, 2, 4, 4, 2, '2026-05-19', 2, 'Cancha 2', 1),
+    (12, 2, 4, 5, 6, '2026-05-19', 1, 'Cancha 2', 2),
+    (13, 2, 5, 1, 2, '2026-06-09', 2, 'Cancha 1', 1),
+    (14, 2, 5, 3, 6, '2026-06-09', 3, 'Cancha 1', 1),
+    (15, 2, 5, 4, 5, '2026-06-09', 2, 'Cancha 1', 2);
+
+UPDATE partido SET estado = 'postergado' WHERE id_partido = 14;
+UPDATE partido SET estado = 'cancelado' WHERE id_partido = 15;

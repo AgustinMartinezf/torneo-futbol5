@@ -94,18 +94,21 @@ valida el front y el back.
 | Planteles modificables solo en `inscripción` | `trg_ejt_validar_insert`, `trg_ejt_no_cambiar_equipo`, `trg_ejt_validar_delete` | implementada |
 | Estados de la edición avanzan en orden | `trg_torneo_validar_insert`, `trg_torneo_validar_update` (S-16) | implementada |
 | Partido: ambos equipos de la misma edición | `fk_partido_local`, `fk_partido_visitante` | implementada |
-| Partido: equipos con ≥ 5 jugadores | trigger | pendiente, ABM de partidos |
+| Partido: equipos con ≥ 5 jugadores | `trg_partido_validar_insert` / `_update` | implementada |
+| Partido: solo en una edición en curso, se crea como programado | `trg_partido_validar_insert` / `_update` (S-19) | implementada |
 | No enfrentarse a sí mismo | `chk_partido_equipos_distintos` | implementada |
 | No repetir rival salvo cancelado | `uq_partido_cruce` | implementada |
-| Un partido por equipo en la misma fecha | trigger | pendiente, ABM de partidos |
+| Un partido por equipo en la misma fecha | `trg_partido_validar_insert` / `_update` (S-20) | implementada |
+| Partido: día dentro de las fechas de la edición | `trg_partido_validar_insert` / `_update` (S-02) | implementada |
+| Cambios de estado del partido; jugado y cancelado no cambian | `trg_partido_validar_update` (S-01, S-19) | implementada |
 | Cancha: un partido por día y turno | `uq_partido_cancha_turno` | implementada |
 | Planilla: jugador del plantel de su equipo | `fk_planilla_plantel` | implementada |
 | Planilla: equipo es local o visitante del partido | trigger | pendiente, planillas |
 | Planilla: jugador no suspendido | trigger | pendiente, planillas y sanciones |
 | Goles/tarjetas solo de jugadores en la planilla | `fk_gol_planilla`, `fk_tarjeta_planilla` | implementada |
 | Resultado calculado desde los goles | no se guarda; se calcula con una vista | esquema listo, vista pendiente |
-| `jugado` solo si el día y turno pasaron | procedimiento `marcar_partido_jugado` (planillero) + trigger | parcial, falta el trigger para el administrador |
-| Partido jugado no se elimina | RESTRICT desde la planilla + trigger | parcial, falta el trigger del ABM de partidos |
+| `jugado` solo si el día y turno pasaron | procedimiento `marcar_partido_jugado` (planillero) + `trg_partido_validar_update` | implementada |
+| Partido jugado no se elimina | RESTRICT desde la planilla + `trg_partido_validar_delete` | implementada |
 | Corrección del resultado solo en 48 h | trigger | pendiente, planillas |
 | Sanción automática (roja / 3 amarillas) | trigger; `chk_sancion_origen` fija 1 fecha | parcial, falta el trigger de sanciones |
 | Suspendido no figura en planilla | trigger | pendiente, planillas y sanciones |
