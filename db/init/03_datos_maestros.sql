@@ -36,7 +36,7 @@ INSERT INTO torneo (id_torneo, nombre, anio, semestre, fecha_inicio, fecha_fin, 
     (1, 'Interfacultades 2026 segundo semestre', 2026, 2, '2026-10-19', '2026-11-30', 'inscripción'),
     (2, 'Interfacultades 2026 primer semestre', 2026, 1, '2026-03-02', '2026-06-30', 'inscripción');
 -- La edición 2 tiene fechas pasadas para cargar partidos jugados y probar los reportes.
--- Arranca en inscripción para poder cargarle planteles; al final del archivo pasa a 'finalizado'.
+-- Arranca en inscripción para poder cargarle planteles; después pasa a 'en curso'.
 
 -- Hashes bcrypt con costo 12. Las claves de prueba están en el README.
 INSERT INTO login (correo, contrasena, rol) VALUES
@@ -198,3 +198,42 @@ INSERT INTO partido (id_partido, id_torneo, numero_fecha, id_equipo_local, id_eq
 
 UPDATE partido SET estado = 'postergado' WHERE id_partido = 14;
 UPDATE partido SET estado = 'cancelado' WHERE id_partido = 15;
+
+-- Registramos cinco participantes por equipo en las primeras tres fechas.
+-- La tercera amarilla y la roja son en la fecha 3; esos jugadores no tienen planilla en la fecha 4.
+INSERT INTO planilla_partido (id_partido, ci_jugador, id_equipo)
+SELECT p.id_partido, ejt.ci_jugador, ejt.id_equipo
+FROM partido p
+JOIN equipo_jugador_torneo ejt
+  ON ejt.id_equipo IN (p.id_equipo_local, p.id_equipo_visitante)
+WHERE p.id_partido BETWEEN 1 AND 9 AND ejt.numero_camiseta <= 5;
+
+INSERT INTO gol (id_partido, ci_jugador, minuto, autogol) VALUES
+    (1, '50000000', 12, 0),
+    (1, '50000395', 24, 1),
+    (1, '50000408', 45, 0),
+    (2, '50000050', 16, 0),
+    (2, '50000260', 38, 0),
+    (3, '50000135', 8, 0),
+    (3, '50000179', 29, 0),
+    (4, '50000016', 21, 0),
+    (4, '50000276', 53, 0),
+    (5, '50000414', 9, 0),
+    (5, '50000185', 34, 0),
+    (6, '50000066', 27, 0),
+    (6, '50000141', 49, 0),
+    (7, '50000022', 18, 0),
+    (7, '50000191', 50, 0),
+    (8, '50000282', 11, 0),
+    (8, '50000157', 42, 0),
+    (9, '50000420', 31, 0),
+    (9, '50000072', 58, 0);
+
+INSERT INTO tarjeta (id_partido, ci_jugador, minuto, color) VALUES
+    (1, '50000000', 41, 'amarilla'),
+    (4, '50000000', 33, 'amarilla'),
+    (5, '50000395', 44, 'amarilla'),
+    (7, '50000000', 37, 'amarilla'),
+    (9, '50000050', 55, 'roja');
+
+UPDATE partido SET estado = 'jugado' WHERE id_partido BETWEEN 1 AND 9;

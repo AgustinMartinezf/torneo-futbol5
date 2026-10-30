@@ -10,12 +10,14 @@ import InicioPage from './pages/InicioPage.jsx'
 import JugadoresPage from './pages/JugadoresPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import PartidosPage from './pages/PartidosPage.jsx'
+import PlanillasPage from './pages/PlanillasPage.jsx'
 import PendientePage from './pages/PendientePage.jsx'
 
 export default function App() {
   const paginas = {
     jugadores: <JugadoresPage />, facultades: <FacultadesPage />, complejos: <ComplejosPage />,
     torneos: <TorneosPage />, equipos: <EquiposPage />, partidos: <PartidosPage />,
+    planillas: <PlanillasPage />,
   }
 
   return (

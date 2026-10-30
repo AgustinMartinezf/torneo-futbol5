@@ -22,6 +22,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON torneo_futbol5.planilla_partido TO 'app_
 GRANT SELECT, INSERT, UPDATE, DELETE ON torneo_futbol5.gol TO 'app_admin'@'%';
 GRANT SELECT, INSERT, UPDATE, DELETE ON torneo_futbol5.tarjeta TO 'app_admin'@'%';
 GRANT SELECT, INSERT, UPDATE, DELETE ON torneo_futbol5.sancion_jugador TO 'app_admin'@'%';
+GRANT SELECT ON torneo_futbol5.v_resultado_partido TO 'app_admin'@'%';
 GRANT EXECUTE ON torneo_futbol5.* TO 'app_admin'@'%';
 
 GRANT SELECT ON torneo_futbol5.facultad TO 'app_planillero'@'%';
@@ -34,6 +35,7 @@ GRANT SELECT ON torneo_futbol5.cancha TO 'app_planillero'@'%';
 GRANT SELECT ON torneo_futbol5.turno TO 'app_planillero'@'%';
 GRANT SELECT ON torneo_futbol5.partido TO 'app_planillero'@'%';
 GRANT SELECT ON torneo_futbol5.sancion_jugador TO 'app_planillero'@'%';
+GRANT SELECT ON torneo_futbol5.v_resultado_partido TO 'app_planillero'@'%';
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON torneo_futbol5.planilla_partido TO 'app_planillero'@'%';
 GRANT SELECT, INSERT, UPDATE, DELETE ON torneo_futbol5.gol TO 'app_planillero'@'%';

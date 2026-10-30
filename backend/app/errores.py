@@ -83,6 +83,7 @@ MENSAJES = {
     "fk_gol_planilla": "Solo pueden hacer goles los jugadores que figuran en la planilla.",
     "fk_tarjeta_planilla": "Solo pueden recibir tarjetas los jugadores que figuran en la planilla.",
     "planilla_partido.PRIMARY": "El jugador ya figura en la planilla del partido.",
+    "fk_planilla_plantel": "El jugador no pertenece al plantel de ese equipo.",
 }
 
 # Para una FK, el 1452 (el dato no existe) usa MENSAJES y el 1451 (el dato está en uso) usa este.
@@ -100,6 +101,8 @@ MENSAJES_EN_USO = {
     "fk_equipo_capitan": "Antes de sacar al capitán hay que elegir otro capitán.",
     "fk_planilla_plantel": "No se puede sacar al jugador porque tiene planillas registradas.",
     "fk_planilla_partido": "No se puede borrar el partido porque tiene planilla.",
+    "fk_gol_planilla": "No se puede quitar al jugador de la planilla porque tiene goles. Borrá primero sus goles.",
+    "fk_tarjeta_planilla": "No se puede quitar al jugador de la planilla porque tiene tarjetas. Borrá primero sus tarjetas.",
 }
 
 _PATRONES = {
