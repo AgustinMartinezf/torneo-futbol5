@@ -637,3 +637,201 @@ CREATE TABLE sancion_jugador (
         OR (motivo <> 'disciplinaria' AND id_tarjeta IS NOT NULL AND cantidad_fechas = 1)
     )
 ) ENGINE = InnoDB;
+
+
+-- Las 48 horas de corrección se cuentan desde el fin del turno (S-22).
+-- Mientras el partido siga programado se puede cargar antes de marcarlo jugado, pero no antes de su hora de inicio.
+DELIMITER //
+CREATE TRIGGER trg_planilla_validar_insert
+BEFORE INSERT ON planilla_partido
+FOR EACH ROW
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM partido p WHERE p.id_partido = NEW.id_partido
+          AND NEW.id_equipo IN (p.id_equipo_local, p.id_equipo_visitante)
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'El equipo de la planilla debe jugar ese partido.';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM partido p WHERE p.id_partido = NEW.id_partido
+          AND p.estado IN ('cancelado', 'postergado')
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'No se puede cargar la planilla de un partido cancelado o postergado.';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM partido p JOIN turno t ON t.id_turno = p.id_turno
+        WHERE p.id_partido = NEW.id_partido AND NOW() < TIMESTAMP(p.dia, t.hora_inicio)
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Todavía no empezó el partido: no se puede cargar la planilla.';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM partido p JOIN sancion_jugador s ON s.id_torneo = p.id_torneo
+        WHERE p.id_partido = NEW.id_partido AND s.ci_jugador = NEW.ci_jugador
+          AND p.numero_fecha BETWEEN s.numero_fecha_inicio
+              AND s.numero_fecha_inicio + s.cantidad_fechas - 1
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'El jugador está suspendido para esta fecha.';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM partido p JOIN turno t ON t.id_turno = p.id_turno
+        WHERE p.id_partido = NEW.id_partido AND p.estado = 'jugado'
+          AND NOW() > TIMESTAMP(p.dia, t.hora_fin) + INTERVAL 48 HOUR
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Pasaron las 48 horas para corregir la planilla del partido.';
+    END IF;
+END//
+
+CREATE TRIGGER trg_planilla_validar_update
+BEFORE UPDATE ON planilla_partido
+FOR EACH ROW
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM partido p WHERE p.id_partido = NEW.id_partido
+          AND NEW.id_equipo IN (p.id_equipo_local, p.id_equipo_visitante)
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'El equipo de la planilla debe jugar ese partido.';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM partido p WHERE p.id_partido = NEW.id_partido
+          AND p.estado IN ('cancelado', 'postergado')
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'No se puede cargar la planilla de un partido cancelado o postergado.';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM partido p JOIN sancion_jugador s ON s.id_torneo = p.id_torneo
+        WHERE p.id_partido = NEW.id_partido AND s.ci_jugador = NEW.ci_jugador
+          AND p.numero_fecha BETWEEN s.numero_fecha_inicio
+              AND s.numero_fecha_inicio + s.cantidad_fechas - 1
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'El jugador está suspendido para esta fecha.';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM partido p JOIN turno t ON t.id_turno = p.id_turno
+        WHERE p.id_partido IN (OLD.id_partido, NEW.id_partido) AND p.estado = 'jugado'
+          AND NOW() > TIMESTAMP(p.dia, t.hora_fin) + INTERVAL 48 HOUR
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Pasaron las 48 horas para corregir la planilla del partido.';
+    END IF;
+END//
+
+CREATE TRIGGER trg_planilla_validar_delete
+BEFORE DELETE ON planilla_partido
+FOR EACH ROW
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM partido p JOIN turno t ON t.id_turno = p.id_turno
+        WHERE p.id_partido = OLD.id_partido AND p.estado = 'jugado'
+          AND NOW() > TIMESTAMP(p.dia, t.hora_fin) + INTERVAL 48 HOUR
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Pasaron las 48 horas para corregir la planilla del partido.';
+    END IF;
+END//
+
+CREATE TRIGGER trg_gol_validar_insert
+BEFORE INSERT ON gol
+FOR EACH ROW
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM partido p JOIN turno t ON t.id_turno = p.id_turno
+        WHERE p.id_partido = NEW.id_partido AND p.estado = 'jugado'
+          AND NOW() > TIMESTAMP(p.dia, t.hora_fin) + INTERVAL 48 HOUR
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Pasaron las 48 horas para corregir los goles del partido.';
+    END IF;
+END//
+
+CREATE TRIGGER trg_gol_validar_update
+BEFORE UPDATE ON gol
+FOR EACH ROW
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM partido p JOIN turno t ON t.id_turno = p.id_turno
+        WHERE p.id_partido IN (OLD.id_partido, NEW.id_partido) AND p.estado = 'jugado'
+          AND NOW() > TIMESTAMP(p.dia, t.hora_fin) + INTERVAL 48 HOUR
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Pasaron las 48 horas para corregir los goles del partido.';
+    END IF;
+END//
+
+CREATE TRIGGER trg_gol_validar_delete
+BEFORE DELETE ON gol
+FOR EACH ROW
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM partido p JOIN turno t ON t.id_turno = p.id_turno
+        WHERE p.id_partido = OLD.id_partido AND p.estado = 'jugado'
+          AND NOW() > TIMESTAMP(p.dia, t.hora_fin) + INTERVAL 48 HOUR
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Pasaron las 48 horas para corregir los goles del partido.';
+    END IF;
+END//
+
+CREATE TRIGGER trg_tarjeta_validar_insert
+BEFORE INSERT ON tarjeta
+FOR EACH ROW
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM partido p JOIN turno t ON t.id_turno = p.id_turno
+        WHERE p.id_partido = NEW.id_partido AND p.estado = 'jugado'
+          AND NOW() > TIMESTAMP(p.dia, t.hora_fin) + INTERVAL 48 HOUR
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Pasaron las 48 horas para corregir las tarjetas del partido.';
+    END IF;
+END//
+
+CREATE TRIGGER trg_tarjeta_validar_update
+BEFORE UPDATE ON tarjeta
+FOR EACH ROW
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM partido p JOIN turno t ON t.id_turno = p.id_turno
+        WHERE p.id_partido IN (OLD.id_partido, NEW.id_partido) AND p.estado = 'jugado'
+          AND NOW() > TIMESTAMP(p.dia, t.hora_fin) + INTERVAL 48 HOUR
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Pasaron las 48 horas para corregir las tarjetas del partido.';
+    END IF;
+END//
+
+CREATE TRIGGER trg_tarjeta_validar_delete
+BEFORE DELETE ON tarjeta
+FOR EACH ROW
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM partido p JOIN turno t ON t.id_turno = p.id_turno
+        WHERE p.id_partido = OLD.id_partido AND p.estado = 'jugado'
+          AND NOW() > TIMESTAMP(p.dia, t.hora_fin) + INTERVAL 48 HOUR
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Pasaron las 48 horas para corregir las tarjetas del partido.';
+    END IF;
+END//
+DELIMITER ;
+
+
+CREATE VIEW v_resultado_partido AS
+SELECT p.id_partido,
+       SUM(CASE WHEN (pp.id_equipo = p.id_equipo_local AND g.autogol = 0)
+                     OR (pp.id_equipo = p.id_equipo_visitante AND g.autogol = 1)
+                THEN 1 ELSE 0 END) AS goles_local,
+       SUM(CASE WHEN (pp.id_equipo = p.id_equipo_visitante AND g.autogol = 0)
+                     OR (pp.id_equipo = p.id_equipo_local AND g.autogol = 1)
+                THEN 1 ELSE 0 END) AS goles_visitante
+FROM partido p
+LEFT JOIN gol g ON g.id_partido = p.id_partido
+LEFT JOIN planilla_partido pp ON pp.id_partido = g.id_partido AND pp.ci_jugador = g.ci_jugador
+GROUP BY p.id_partido;
