@@ -16,6 +16,11 @@ la primera o la segunda amarilla la sanción también tendría que irse, y la ca
 MySQL los borrados en cascada no disparan triggers.
 
 ## Qué implica
-Por ahora, si se quiere borrar una tarjeta que generó una sanción, da error. Cuando hagamos las sanciones, vamos a
-borrar o recalcular la sanción y después la tarjeta, en la misma transacción. Que la CI y el color de la tarjeta
-coincidan con la sanción también lo vamos a controlar ahí, con un trigger.
+Antes de borrar una tarjeta, `trg_tarjeta_validar_delete` borra la sanción que generó: si es roja, la borra; si es
+amarilla, recalcula las sanciones por acumulación del jugador sin esa tarjeta (S-24). Como es un trigger BEFORE, todo
+pasa en la misma sentencia y la FK nunca queda apuntando a una tarjeta que no existe. `trg_sancion_validar_insert`
+controla que la CI, la edición, el color y la fecha de una sanción automática coincidan con su tarjeta.
+
+Lo que no controla la base es que alguien con el usuario del administrador borre a mano una sanción automática, porque
+ese usuario necesita borrar sanciones disciplinarias. El back no lo deja, y si pasara, la sanción por acumulación se
+vuelve a generar la próxima vez que se cargue o se borre una amarilla del jugador.
