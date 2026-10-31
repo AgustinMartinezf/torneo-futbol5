@@ -40,6 +40,8 @@ def agregar_jugador(id_partido: int, datos: JugadorPlanillaIn, conn=Depends(cone
         raise HTTPException(status_code=404, detail="El partido no está disponible para cargar planilla.")
     if not partido["puede_editar"]:
         raise HTTPException(status_code=400, detail="Pasaron las 48 horas para corregir la planilla del partido.")
+    if not partido["turno_empezado"]:
+        raise HTTPException(status_code=400, detail="Todavía no empezó el partido: no se puede cargar la planilla.")
     if datos.id_equipo not in (partido["id_equipo_local"], partido["id_equipo_visitante"]):
         raise HTTPException(status_code=400, detail="El equipo de la planilla debe jugar ese partido.")
     if not repo.jugador_del_plantel(conn, datos.id_equipo, datos.ci_jugador):

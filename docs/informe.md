@@ -103,15 +103,16 @@ valida el front y el back.
 | Cambios de estado del partido; jugado y cancelado no cambian | `trg_partido_validar_update` (S-01, S-19) | implementada |
 | Cancha: un partido por día y turno | `uq_partido_cancha_turno` | implementada |
 | Planilla: jugador del plantel de su equipo | `fk_planilla_plantel` | implementada |
-| Planilla: equipo es local o visitante del partido | trigger | pendiente, planillas |
-| Planilla: jugador no suspendido | trigger | pendiente, planillas y sanciones |
+| Planilla: equipo es local o visitante del partido | `trg_planilla_validar_insert` / `_update` | implementada |
+| Planilla: solo una vez disputado el partido (no antes de su hora de inicio) | `trg_planilla_validar_insert` (S-22) | implementada |
+| Planilla: jugador no suspendido | `trg_planilla_validar_insert` / `_update` (lee `sancion_jugador`) | implementada |
 | Goles/tarjetas solo de jugadores en la planilla | `fk_gol_planilla`, `fk_tarjeta_planilla` | implementada |
-| Resultado calculado desde los goles | no se guarda; se calcula con una vista | esquema listo, vista pendiente |
+| Resultado calculado desde los goles | no se guarda; lo calcula la vista `v_resultado_partido` (el autogol suma al rival) | implementada |
 | `jugado` solo si el día y turno pasaron | procedimiento `marcar_partido_jugado` (planillero) + `trg_partido_validar_update` | implementada |
 | Partido jugado no se elimina | RESTRICT desde la planilla + `trg_partido_validar_delete` | implementada |
-| Corrección del resultado solo en 48 h | trigger | pendiente, planillas |
+| Corrección del resultado solo en 48 h | `trg_planilla_validar_*`, `trg_gol_validar_*`, `trg_tarjeta_validar_*` (S-22) | implementada |
 | Sanción automática (roja / 3 amarillas) | trigger; `chk_sancion_origen` fija 1 fecha | parcial, falta el trigger de sanciones |
-| Suspendido no figura en planilla | trigger | pendiente, planillas y sanciones |
+| Suspendido no figura en planilla | `trg_planilla_validar_insert` / `_update` | implementada (falta generar las sanciones automáticas) |
 | Roles administrador / planillero | ENUM en `login`; usuarios de BD `app_admin` y `app_planillero` | implementada |
 
 ### 3.3 Seguridad (usuarios de base de datos y roles de la aplicación)

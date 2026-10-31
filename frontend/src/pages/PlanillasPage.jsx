@@ -132,7 +132,7 @@ export default function PlanillasPage() {
       { campo: 'presente', titulo: 'Planilla', mostrar: (j) => j.presente ? 'Presente' : j.suspendido ? 'Suspendido' : 'Ausente' },
     ]} filas={jugadores} clave="ci_jugador" acciones={(j) => <button
       className={j.presente ? 'peligro' : 'secundario'}
-      disabled={operando || !partido.puede_editar || (!j.presente && j.suspendido)}
+      disabled={operando || !partido.puede_editar || (!j.presente && (j.suspendido || !partido.turno_empezado))}
       onClick={() => cambiarPresencia(j)}>{j.presente ? 'Quitar' : 'Agregar'}</button>}
     /></div>
   }
@@ -151,6 +151,7 @@ export default function PlanillasPage() {
       <h2>{partido.equipo_local} {partido.goles_local} - {partido.goles_visitante} {partido.equipo_visitante}</h2>
       <p>{partido.torneo}, fecha {partido.numero_fecha}. {partido.dia}, {partido.hora_inicio} a {partido.hora_fin}. Estado: {partido.estado}.</p>
       {!partido.puede_editar && <p>Pasaron las 48 horas desde el fin del turno. La planilla queda de consulta.</p>}
+      {!partido.turno_empezado && <p>Todavía no empezó el partido: la planilla se carga una vez disputado.</p>}
       {partido.estado === 'programado' && <button disabled={operando || !partido.turno_terminado}
         onClick={marcarJugado}>Marcar como jugado</button>}
       {partido.estado === 'programado' && !partido.turno_terminado && <p>Se puede marcar jugado cuando termine el turno.</p>}

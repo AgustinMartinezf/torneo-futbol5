@@ -32,7 +32,7 @@ están las preguntas que tenemos para el docente.
 | S-19 | Un partido se crea siempre como `programado`. Después puede pasar a `jugado` (si ya terminó su turno), `postergado` o `cancelado`. Uno postergado vuelve a `programado` cuando se reprograma o se cancela. Un partido jugado o cancelado ya no se modifica. | `trg_partido_validar_insert`, `trg_partido_validar_update`, back y formulario de partidos |
 | S-20 | Para la regla de un partido por equipo y fecha no cuentan los partidos cancelados, igual que para el cruce repetido. Así un partido cancelado se puede volver a jugar en la misma fecha. | Triggers de `partido`, back y formulario |
 | S-21 | Los equipos de un partido no se cambian si ya tiene planilla, porque los jugadores de la planilla quedarían con un equipo que no juega ese partido. | `trg_partido_validar_update`, back y formulario |
-| S-22 | Contamos las 48 horas para corregir la planilla, los goles y las tarjetas desde el fin del turno del partido. Mientras sigue programado podemos cargar sus datos antes de marcarlo jugado. | Triggers de `planilla_partido`, `gol` y `tarjeta`; formulario de planillas |
+| S-22 | Contamos las 48 horas para corregir la planilla, los goles y las tarjetas desde el fin del turno del partido. Mientras sigue programado podemos cargar sus datos antes de marcarlo jugado. La planilla no se puede cargar antes de la hora de inicio del turno, porque la letra dice que se registra una vez disputado el partido. | Triggers de `planilla_partido`, `gol` y `tarjeta`; formulario de planillas |
 
 Los planteles pueden tener menos de cinco jugadores mientras los cargamos durante la inscripción. Exigimos entre
 cinco y diez, con capitán, al pasar la edición a en curso. El máximo de diez y el cupo de docentes y funcionarios

@@ -640,7 +640,7 @@ CREATE TABLE sancion_jugador (
 
 
 -- Las 48 horas de corrección se cuentan desde el fin del turno (S-22).
--- Mientras el partido siga programado se puede cargar antes de marcarlo jugado.
+-- Mientras el partido siga programado se puede cargar antes de marcarlo jugado, pero no antes de su hora de inicio.
 DELIMITER //
 CREATE TRIGGER trg_planilla_validar_insert
 BEFORE INSERT ON planilla_partido
@@ -659,6 +659,13 @@ BEGIN
     ) THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'No se puede cargar la planilla de un partido cancelado o postergado.';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM partido p JOIN turno t ON t.id_turno = p.id_turno
+        WHERE p.id_partido = NEW.id_partido AND NOW() < TIMESTAMP(p.dia, t.hora_inicio)
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Todavía no empezó el partido: no se puede cargar la planilla.';
     END IF;
     IF EXISTS (
         SELECT 1 FROM partido p JOIN sancion_jugador s ON s.id_torneo = p.id_torneo
