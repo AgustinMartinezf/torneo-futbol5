@@ -38,6 +38,9 @@ están las preguntas que tenemos para el docente.
 | S-25 | Una tarjeta no se modifica: para corregirla se borra y se carga de nuevo. Así la sanción que generó siempre coincide con su tarjeta. | `trg_tarjeta_validar_update`, pantalla de planillas |
 | S-26 | Una sanción no cambia las planillas que ya estaban cargadas. Si una tarjeta o una sanción disciplinaria se carga tarde y el jugador ya figura en la planilla de una fecha de su sanción, lo dejamos; la regla se aplica a lo que se cargue después. | Triggers de `planilla_partido`, ABM de sanciones |
 | S-27 | Las sanciones disciplinarias se cargan, modifican y borran solo en ediciones en curso. Una roja en la última fecha genera una sanción para una fecha que no se juega, y no tiene efecto. | `trg_sancion_validar_insert` / `_update`, back y formulario de sanciones |
+| S-28 | En el reporte de canchas y turnos contamos los partidos jugados y los programados. Los postergados y los cancelados no, porque liberan la cancha (ADR 0006). | Reporte de canchas y turnos |
+| S-29 | En el porcentaje de partidos por estado el total son todos los partidos de la edición, incluidos los programados, así los cuatro porcentajes suman 100. | Reporte de partidos por estado |
+| S-30 | El reporte de jugadores por facultad y tipo cuenta todos los jugadores registrados, no los de una edición, porque el jugador no pertenece a una edición. Las combinaciones sin jugadores aparecen con 0. El reporte de jugadores sin planilla mira solo las planillas de la edición elegida. | Reportes de jugadores |
 
 Los planteles pueden tener menos de cinco jugadores mientras los cargamos durante la inscripción. Exigimos entre
 cinco y diez, con capitán, al pasar la edición a en curso. El máximo de diez y el cupo de docentes y funcionarios
