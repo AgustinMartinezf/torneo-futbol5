@@ -167,7 +167,7 @@ del rol, pero eso es comodidad: quien controla los permisos es el back, y por de
 ## 4. Reportes
 ### 4.1 Consultas pedidas
 
-Usamos consultas parametrizadas en `backend/app/repos/reportes.py`. Cada `%s` recibe el identificador de la edición seleccionada. Usamos los permisos existentes de las tablas y de `v_resultado_partido`, sin crear vistas nuevas. Los cuatro endpoints `/reportes/...` y la pantalla Reportes son solo para el administrador.
+Usamos consultas parametrizadas en `backend/app/repos/reportes.py`. Cada `%s` recibe el identificador de la edición seleccionada. Usamos los permisos existentes de las tablas y de `v_resultado_partido`, sin crear vistas nuevas. Los endpoints `/reportes/...` y la pantalla Reportes son solo para el administrador. Todos reciben la edición salvo el de jugadores por facultad y tipo, que es de todas.
 
 #### Tabla de posiciones
 
@@ -277,7 +277,187 @@ En fair play, Ingeniería Verde tiene tres amarillas (3 puntos), Ingeniería Azu
 
 Por fecha hay 10/3 = 3,33; 10/3 = 3,33; 7/3 = 2,33 goles por partido. En toda la edición son 27/9 = 3,00. Los seis partidos sin jugar no entran en el cálculo.
 
+#### Canchas y turnos más utilizados
+
+Son dos consultas. Contamos los partidos jugados y los programados de la edición; los postergados y cancelados no, porque liberan la cancha (S-28). Partimos de `cancha` y de `turno` con LEFT JOIN para que las canchas y turnos sin partidos aparezcan con 0. Ordenamos de más a menos usado.
+
+```sql
+SELECT c.id_complejo, co.nombre AS complejo, c.nombre_cancha, COUNT(p.id_partido) AS partidos
+FROM cancha c
+JOIN complejo co ON co.id_complejo = c.id_complejo
+LEFT JOIN partido p ON p.id_complejo = c.id_complejo AND p.nombre_cancha = c.nombre_cancha
+     AND p.id_torneo = %s AND p.estado IN ('jugado', 'programado')
+GROUP BY c.id_complejo, co.nombre, c.nombre_cancha
+ORDER BY partidos DESC, co.nombre, c.nombre_cancha
+```
+
+```sql
+SELECT t.id_turno, LEFT(t.hora_inicio, 5) AS hora_inicio, LEFT(t.hora_fin, 5) AS hora_fin,
+       COUNT(p.id_partido) AS partidos
+FROM turno t
+LEFT JOIN partido p ON p.id_turno = t.id_turno
+     AND p.id_torneo = %s AND p.estado IN ('jugado', 'programado')
+GROUP BY t.id_turno, t.hora_inicio, t.hora_fin
+ORDER BY partidos DESC, t.hora_inicio
+```
+
+Las condiciones de la edición y del estado van en el ON y no en el WHERE: si estuvieran en el WHERE, las canchas sin partidos quedarían afuera.
+
+#### Jugadores por facultad y tipo
+
+Contamos todos los jugadores registrados, porque el jugador no pertenece a una edición (S-30). Los tipos son un ENUM y no una tabla, así que armamos los cuatro con UNION ALL y los cruzamos con todas las facultades. El LEFT JOIN a `jugador` deja en 0 las combinaciones sin jugadores, como la facultad de Comunicación.
+
+```sql
+SELECT f.id_facultad, f.nombre AS facultad, t.tipo, COUNT(j.ci) AS jugadores
+FROM facultad f
+CROSS JOIN (SELECT 1 AS orden, 'grado' AS tipo UNION ALL SELECT 2, 'posgrado'
+            UNION ALL SELECT 3, 'docente' UNION ALL SELECT 4, 'funcionario') t
+LEFT JOIN jugador j ON j.id_facultad = f.id_facultad AND j.tipo = t.tipo
+GROUP BY f.id_facultad, f.nombre, t.orden, t.tipo
+ORDER BY f.nombre, t.orden
+```
+
+#### Jugadores que nunca figuraron en una planilla
+
+Tomamos los jugadores del plantel de la edición y nos quedamos con los que no tienen ninguna fila en `planilla_partido` para partidos de esa misma edición (S-30).
+
+```sql
+SELECT j.ci AS ci_jugador, j.nombre, j.apellido, e.id_equipo, e.nombre AS equipo,
+       ejt.numero_camiseta
+FROM equipo_jugador_torneo ejt
+JOIN equipo e ON e.id_equipo = ejt.id_equipo
+JOIN jugador j ON j.ci = ejt.ci_jugador
+WHERE ejt.id_torneo = %s
+  AND NOT EXISTS (
+      SELECT 1
+      FROM planilla_partido pp
+      JOIN partido p ON p.id_partido = pp.id_partido
+      WHERE pp.ci_jugador = ejt.ci_jugador AND p.id_torneo = ejt.id_torneo
+  )
+ORDER BY e.nombre, ejt.numero_camiseta
+```
+
+#### Sanciones por equipo y motivo
+
+`sancion_jugador` no guarda el equipo: lo sacamos del plantel del sancionado en esa edición (ADR 0005). Mostramos una fila por equipo con una columna por motivo y el total, igual que en fair play. Con LEFT JOIN desde `equipo` aparecen también los equipos sin sanciones.
+
+```sql
+SELECT e.id_equipo, e.nombre AS equipo,
+       COALESCE(SUM(s.motivo = 'roja'), 0) AS roja,
+       COALESCE(SUM(s.motivo = 'acumulación de amarillas'), 0) AS acumulacion,
+       COALESCE(SUM(s.motivo = 'disciplinaria'), 0) AS disciplinaria,
+       COUNT(s.id_sancion) AS total
+FROM equipo e
+LEFT JOIN equipo_jugador_torneo ejt ON ejt.id_equipo = e.id_equipo
+LEFT JOIN sancion_jugador s ON s.ci_jugador = ejt.ci_jugador AND s.id_torneo = ejt.id_torneo
+WHERE e.id_torneo = %s
+GROUP BY e.id_equipo, e.nombre
+ORDER BY total DESC, e.nombre, e.id_equipo
+```
+
+#### Partidos por estado
+
+Mostramos los cuatro estados con su cantidad y su porcentaje. El total son todos los partidos de la edición, también los programados, así los porcentajes suman 100 (S-29). Los estados salen de un UNION ALL para que aparezcan aunque tengan 0. Con NULLIF evitamos dividir entre cero en una edición sin partidos; en ese caso el porcentaje queda NULL.
+
+```sql
+SELECT s.estado, COUNT(p.id_partido) AS partidos,
+       ROUND(100 * COUNT(p.id_partido)
+             / NULLIF((SELECT COUNT(*) FROM partido WHERE id_torneo = %s), 0), 1) AS porcentaje
+FROM (SELECT 1 AS orden, 'jugado' AS estado UNION ALL SELECT 2, 'programado'
+      UNION ALL SELECT 3, 'postergado' UNION ALL SELECT 4, 'cancelado') s
+LEFT JOIN partido p ON p.estado = s.estado AND p.id_torneo = %s
+GROUP BY s.orden, s.estado
+ORDER BY s.orden
+```
+
+#### Chequeo a mano de los reportes 5 a 9
+
+Contamos en el seed de la edición 2:
+
+- Canchas, con jugados y programados: Cancha 1 del Complejo del Parque 6 partidos, Cancha 2 del Parque 3, Cancha 1 y Cancha 2 del Complejo del Lago 2 cada una. La Cancha 3 del Parque, 0.
+- Turnos: 18 a 19 y 19 a 20 con 5, 20 a 21 con 2, 21 a 22 con 1 y 22 a 23 con 0.
+- Jugadores por facultad: 8 de grado, 3 de posgrado, 1 docente y 1 funcionario en cada facultad, salvo Ingeniería y Tecnologías, que tiene 9 de grado. Comunicación tiene 0 en los cuatro tipos.
+- Sin planilla: 6 jugadores, los de camiseta 6 y 7, que nunca entraron en la planilla. Ingeniería Verde no tiene ninguno porque su plantel es de cinco y jugaron todos.
+- Sanciones: Ingeniería Verde 1 por acumulación, Ingeniería Azul 1 por roja y Salud Verde 1 disciplinaria. Los otros tres equipos, 0.
+- Estados sobre 15 partidos: 9 jugados (60,0 %), 4 programados (26,7 %), 1 postergado (6,7 %) y 1 cancelado (6,7 %).
+
+En la edición del segundo semestre, que no tiene partidos, los reportes devuelven las canchas, turnos, estados y equipos con 0, y los doce jugadores de sus planteles en el de sin planilla.
+
 ### 4.2 Consultas propuestas por el grupo
+
+Elegimos tres consultas que le sirven al área de deportes y que salen con lo que ya guarda el modelo. Siguen las mismas reglas que las pedidas: parámetro de la edición, solo partidos jugados y endpoints solo para el administrador (`/reportes/valla-menos-vencida`, `/reportes/goles-por-tipo` y `/reportes/local-visitante`).
+
+#### Valla menos vencida
+
+Para qué sirve: la tabla de posiciones premia al que hace goles, pero no muestra qué equipo defiende mejor. Con esta consulta la organización puede dar un premio a la valla menos vencida, como en muchos torneos, y ver qué equipos reciben muchos goles por partido.
+
+Usamos el mismo UNION ALL de local y visitante que en posiciones, pero solo con los goles en contra. Ordenamos por goles en contra de menor a mayor y, si empatan, va primero el que jugó más partidos. Los equipos que todavía no jugaron van al final (`pj = 0` vale 1 para ellos), para que no queden primeros con 0 goles en contra.
+
+```sql
+SELECT e.id_equipo, e.nombre AS equipo, COUNT(r.id_equipo) AS pj,
+       COALESCE(SUM(r.gc), 0) AS gc, ROUND(AVG(r.gc), 2) AS promedio
+FROM equipo e
+LEFT JOIN (
+    SELECT p.id_equipo_local AS id_equipo, v.goles_visitante AS gc
+    FROM partido p JOIN v_resultado_partido v ON v.id_partido = p.id_partido
+    WHERE p.id_torneo = %s AND p.estado = 'jugado'
+    UNION ALL
+    SELECT p.id_equipo_visitante, v.goles_local
+    FROM partido p JOIN v_resultado_partido v ON v.id_partido = p.id_partido
+    WHERE p.id_torneo = %s AND p.estado = 'jugado'
+) r ON r.id_equipo = e.id_equipo
+WHERE e.id_torneo = %s
+GROUP BY e.id_equipo, e.nombre
+ORDER BY pj = 0, gc, pj DESC, e.nombre, e.id_equipo
+```
+
+#### Goles por tipo de jugador
+
+Para qué sirve: el torneo es para estudiantes de grado y posgrado, docentes y funcionarios, y la letra limita a dos docentes o funcionarios por plantel. Esta consulta muestra cuánto aporta cada grupo en la cancha y si docentes y funcionarios realmente juegan, algo útil para revisar ese cupo o para promover la participación de los grupos que menos juegan.
+
+Contamos los goles sin autogoles y cuántos jugadores distintos convirtieron, por tipo. Igual que en el reporte de facultades, los cuatro tipos salen de un UNION ALL para que aparezcan aunque no tengan goles.
+
+```sql
+SELECT t.tipo, COUNT(g.id_gol) AS goles, COUNT(DISTINCT g.ci_jugador) AS goleadores
+FROM (SELECT 1 AS orden, 'grado' AS tipo UNION ALL SELECT 2, 'posgrado'
+      UNION ALL SELECT 3, 'docente' UNION ALL SELECT 4, 'funcionario') t
+LEFT JOIN (
+    SELECT j.tipo, go.id_gol, go.ci_jugador
+    FROM gol go
+    JOIN partido p ON p.id_partido = go.id_partido
+    JOIN jugador j ON j.ci = go.ci_jugador
+    WHERE p.id_torneo = %s AND p.estado = 'jugado' AND go.autogol = 0
+) g ON g.tipo = t.tipo
+GROUP BY t.orden, t.tipo
+ORDER BY t.orden
+```
+
+#### Rendimiento de local y visitante
+
+Para qué sirve: en el torneo nadie juega en su cancha, así que ser local o visitante no debería pesar. Si el local gana mucho más, puede ser por el orden de los turnos o por cómo se arma el fixture. Con este dato la organización puede decidir si hace falta balancear quién figura como local en cada fecha.
+
+Es una sola fila con los partidos ganados por el local, los empates, los ganados por el visitante y los goles de cada lado. Sin partidos jugados devolvemos todo en 0.
+
+```sql
+SELECT COUNT(*) AS partidos,
+       COALESCE(SUM(v.goles_local > v.goles_visitante), 0) AS gana_local,
+       COALESCE(SUM(v.goles_local = v.goles_visitante), 0) AS empates,
+       COALESCE(SUM(v.goles_local < v.goles_visitante), 0) AS gana_visitante,
+       COALESCE(SUM(v.goles_local), 0) AS goles_local,
+       COALESCE(SUM(v.goles_visitante), 0) AS goles_visitante
+FROM partido p JOIN v_resultado_partido v ON v.id_partido = p.id_partido
+WHERE p.id_torneo = %s AND p.estado = 'jugado'
+```
+
+#### Chequeo a mano de las consultas propias
+
+Con los resultados de la edición 2 (2-1, 3-0, 2-2, 0-1, 1-3, 1-4, 1-1, 2-1 y 2-0):
+
+- Valla menos vencida: Ingeniería Verde 3 goles en contra (1,00 por partido), Derecho Verde y Empresariales Azul 4 (1,33), Empresariales Verde y Salud Verde 5 (1,67) e Ingeniería Azul 6 (2,00). Coincide con la columna GC de la tabla de posiciones.
+- Goles por tipo: de los 27 goles, uno es autogol. Quedan 26: 25 de jugadores de grado (17 jugadores distintos) y 1 de un docente. Posgrado y funcionarios no tienen goles.
+- Local y visitante: el local ganó 4 partidos (1, 2, 8 y 9), hubo 2 empates (3 y 7) y el visitante ganó 3 (4, 5 y 6). Goles del local 14 y del visitante 13, que suman los 27.
+
+Descartamos una consulta de racha de partidos sin perder: para hacerla bien hacía falta recorrer los partidos en orden con funciones de ventana o un cursor, y eso no lo vimos en el curso.
 
 ## 5. Bitácora
 Ver [bitacora.md](bitacora.md).
