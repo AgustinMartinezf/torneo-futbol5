@@ -166,6 +166,117 @@ del rol, pero eso es comodidad: quien controla los permisos es el back, y por de
 
 ## 4. Reportes
 ### 4.1 Consultas pedidas
+
+Usamos consultas parametrizadas en `backend/app/repos/reportes.py`. Cada `%s` recibe el identificador de la edición seleccionada. Usamos los permisos existentes de las tablas y de `v_resultado_partido`, sin crear vistas nuevas. Los cuatro endpoints `/reportes/...` y la pantalla Reportes son solo para el administrador.
+
+#### Tabla de posiciones
+
+Sumamos los resultados como local y visitante con UNION ALL y agrupamos por equipo. Solo contamos partidos jugados; ordenamos por puntos, diferencia de gol y goles a favor. Los equipos sin partidos aparecen con ceros.
+
+```sql
+SELECT e.id_equipo, e.nombre AS equipo, COUNT(r.id_equipo) AS pj,
+       COALESCE(SUM(r.gf > r.gc), 0) AS pg,
+       COALESCE(SUM(r.gf = r.gc), 0) AS pe,
+       COALESCE(SUM(r.gf < r.gc), 0) AS pp,
+       COALESCE(SUM(r.gf), 0) AS gf, COALESCE(SUM(r.gc), 0) AS gc,
+       COALESCE(SUM(r.gf - r.gc), 0) AS dg,
+       COALESCE(SUM(CASE WHEN r.gf > r.gc THEN 3
+                         WHEN r.gf = r.gc THEN 1 ELSE 0 END), 0) AS pts
+FROM equipo e
+LEFT JOIN (
+    SELECT p.id_equipo_local AS id_equipo, v.goles_local AS gf, v.goles_visitante AS gc
+    FROM partido p JOIN v_resultado_partido v ON v.id_partido = p.id_partido
+    WHERE p.id_torneo = %s AND p.estado = 'jugado'
+    UNION ALL
+    SELECT p.id_equipo_visitante, v.goles_visitante, v.goles_local
+    FROM partido p JOIN v_resultado_partido v ON v.id_partido = p.id_partido
+    WHERE p.id_torneo = %s AND p.estado = 'jugado'
+) r ON r.id_equipo = e.id_equipo
+WHERE e.id_torneo = %s
+GROUP BY e.id_equipo, e.nombre
+ORDER BY pts DESC, dg DESC, gf DESC, e.nombre, e.id_equipo
+```
+
+#### Goleadores
+
+Contamos los goles de cada jugador en partidos jugados, sin autogoles. Mostramos hasta diez; decidimos desempatar por CI ascendente, incluso en el puesto diez, para mantener el límite sin funciones de ventana.
+
+```sql
+SELECT j.ci AS ci_jugador, j.nombre, j.apellido, e.id_equipo, e.nombre AS equipo,
+       COUNT(*) AS goles
+FROM gol g
+JOIN partido p ON p.id_partido = g.id_partido
+JOIN planilla_partido pp ON pp.id_partido = g.id_partido AND pp.ci_jugador = g.ci_jugador
+JOIN equipo e ON e.id_equipo = pp.id_equipo
+JOIN jugador j ON j.ci = g.ci_jugador
+WHERE p.id_torneo = %s AND p.estado = 'jugado' AND g.autogol = 0
+GROUP BY j.ci, j.nombre, j.apellido, e.id_equipo, e.nombre
+ORDER BY goles DESC, j.ci ASC
+LIMIT 10
+```
+
+#### Fair play
+
+Partimos de equipo con LEFT JOIN para incluir todos los equipos de la edición. Contamos amarillas con un punto y rojas con tres, solo en partidos jugados; el menor puntaje es el mejor.
+
+```sql
+SELECT e.id_equipo, e.nombre AS equipo,
+       COALESCE(SUM(t.color = 'amarilla'), 0) AS amarillas,
+       COALESCE(SUM(t.color = 'roja'), 0) AS rojas,
+       COALESCE(SUM(CASE WHEN t.color = 'amarilla' THEN 1
+                         WHEN t.color = 'roja' THEN 3 ELSE 0 END), 0) AS puntos
+FROM equipo e
+LEFT JOIN (
+    SELECT pp.id_equipo, ta.color
+    FROM tarjeta ta
+    JOIN partido p ON p.id_partido = ta.id_partido
+    JOIN planilla_partido pp ON pp.id_partido = ta.id_partido AND pp.ci_jugador = ta.ci_jugador
+    WHERE p.id_torneo = %s AND p.estado = 'jugado'
+) t ON t.id_equipo = e.id_equipo
+WHERE e.id_torneo = %s
+GROUP BY e.id_equipo, e.nombre
+ORDER BY puntos ASC, e.nombre, e.id_equipo
+```
+
+#### Promedio de goles
+
+Calculamos el promedio por fecha y el de toda la edición con los resultados de los partidos jugados. El total es goles dividido entre partidos, no el promedio de los promedios de las fechas. Sin partidos devolvemos total de cero partidos y promedio NULL.
+
+```sql
+SELECT p.numero_fecha, COUNT(*) AS partidos,
+       SUM(v.goles_local + v.goles_visitante) AS goles,
+       ROUND(AVG(v.goles_local + v.goles_visitante), 2) AS promedio
+FROM partido p JOIN v_resultado_partido v ON v.id_partido = p.id_partido
+WHERE p.id_torneo = %s AND p.estado = 'jugado'
+GROUP BY p.numero_fecha
+UNION ALL
+SELECT NULL AS numero_fecha, COUNT(*) AS partidos,
+       COALESCE(SUM(v.goles_local + v.goles_visitante), 0) AS goles,
+       ROUND(AVG(v.goles_local + v.goles_visitante), 2) AS promedio
+FROM partido p JOIN v_resultado_partido v ON v.id_partido = p.id_partido
+WHERE p.id_torneo = %s AND p.estado = 'jugado'
+ORDER BY numero_fecha
+```
+
+#### Chequeo a mano de la edición 2
+
+Tomamos los partidos 1 a 9: 2-1, 3-0, 2-2, 0-1, 1-3, 1-4, 1-1, 2-1 y 2-0. El autogol del partido 1 suma al rival para posiciones y promedios, pero no para goleadores.
+
+| Equipo | PJ | PG | PE | PP | GF | GC | DG | Pts |
+|---|---|---|---|---|---|---|---|---|
+| Derecho Verde | 3 | 2 | 0 | 1 | 3 | 4 | -1 | 6 |
+| Empresariales Azul | 3 | 1 | 2 | 0 | 6 | 4 | 2 | 5 |
+| Empresariales Verde | 3 | 1 | 1 | 1 | 7 | 5 | 2 | 4 |
+| Ingeniería Verde | 3 | 1 | 1 | 1 | 3 | 3 | 0 | 4 |
+| Salud Verde | 3 | 1 | 0 | 2 | 4 | 5 | -1 | 3 |
+| Ingeniería Azul | 3 | 1 | 0 | 2 | 4 | 6 | -2 | 3 |
+
+El goleador es 50000135 con 4. Al contar el seed encontramos cinco jugadores con 2: 50000050, 50000066, 50000185, 50000191 y 50000408. Conservamos esos datos.
+
+En fair play, Ingeniería Verde tiene tres amarillas (3 puntos), Ingeniería Azul una roja (3) y Salud Verde una amarilla (1). Los otros tres equipos tienen cero y aparecen primero.
+
+Por fecha hay 10/3 = 3,33; 10/3 = 3,33; 7/3 = 2,33 goles por partido. En toda la edición son 27/9 = 3,00. Los seis partidos sin jugar no entran en el cálculo.
+
 ### 4.2 Consultas propuestas por el grupo
 
 ## 5. Bitácora
