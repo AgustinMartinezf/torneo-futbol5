@@ -84,6 +84,10 @@ MENSAJES = {
     "fk_tarjeta_planilla": "Solo pueden recibir tarjetas los jugadores que figuran en la planilla.",
     "planilla_partido.PRIMARY": "El jugador ya figura en la planilla del partido.",
     "fk_planilla_plantel": "El jugador no pertenece al plantel de ese equipo.",
+    "fk_sancion_plantel": "El jugador no está en un plantel de esa edición.",
+    "chk_sancion_fecha_inicio": "La fecha de inicio de la sanción tiene que ser 1 o más.",
+    "chk_sancion_cantidad": "La sanción tiene que durar al menos una fecha.",
+    "chk_sancion_origen": "Las sanciones por tarjeta duran una fecha y tienen tarjeta; las disciplinarias no tienen tarjeta.",
 }
 
 # Para una FK, el 1452 (el dato no existe) usa MENSAJES y el 1451 (el dato está en uso) usa este.
@@ -103,6 +107,7 @@ MENSAJES_EN_USO = {
     "fk_planilla_partido": "No se puede borrar el partido porque tiene planilla.",
     "fk_gol_planilla": "No se puede quitar al jugador de la planilla porque tiene goles. Borrá primero sus goles.",
     "fk_tarjeta_planilla": "No se puede quitar al jugador de la planilla porque tiene tarjetas. Borrá primero sus tarjetas.",
+    "fk_sancion_plantel": "No se puede sacar al jugador del plantel porque tiene sanciones en la edición.",
 }
 
 _PATRONES = {

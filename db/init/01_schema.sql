@@ -639,6 +639,41 @@ CREATE TABLE sancion_jugador (
 ) ENGINE = InnoDB;
 
 
+DELIMITER //
+CREATE FUNCTION jugador_suspendido(p_ci VARCHAR(8), p_id_torneo INT, p_numero_fecha INT)
+RETURNS BOOLEAN READS SQL DATA
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM sancion_jugador s
+        WHERE s.ci_jugador = p_ci AND s.id_torneo = p_id_torneo
+          AND p_numero_fecha BETWEEN s.numero_fecha_inicio
+              AND s.numero_fecha_inicio + s.cantidad_fechas - 1
+    );
+END//
+
+-- Borra y vuelve a generar las sanciones por acumulación del jugador en la edición (S-23, S-24):
+-- una por cada amarilla que hace 3, 6, 9..., en orden de fecha, minuto e id.
+-- p_excluir es la amarilla que se está borrando (0 si no hay ninguna).
+CREATE PROCEDURE recalcular_sanciones_amarillas(IN p_ci VARCHAR(8), IN p_id_torneo INT, IN p_excluir INT)
+BEGIN
+    DELETE FROM sancion_jugador
+    WHERE ci_jugador = p_ci AND id_torneo = p_id_torneo AND motivo = 'acumulación de amarillas';
+
+    INSERT INTO sancion_jugador (ci_jugador, id_torneo, motivo, numero_fecha_inicio, cantidad_fechas, id_tarjeta)
+    SELECT t.ci_jugador, p.id_torneo, 'acumulación de amarillas', p.numero_fecha + 1, 1, t.id_tarjeta
+    FROM tarjeta t JOIN partido p ON p.id_partido = t.id_partido
+    WHERE t.ci_jugador = p_ci AND p.id_torneo = p_id_torneo AND t.color = 'amarilla'
+      AND t.id_tarjeta <> p_excluir
+      AND (
+          SELECT COUNT(*) FROM tarjeta t2 JOIN partido p2 ON p2.id_partido = t2.id_partido
+          WHERE t2.ci_jugador = p_ci AND p2.id_torneo = p_id_torneo AND t2.color = 'amarilla'
+            AND t2.id_tarjeta <> p_excluir
+            AND (p2.numero_fecha, t2.minuto, t2.id_tarjeta) <= (p.numero_fecha, t.minuto, t.id_tarjeta)
+      ) % 3 = 0;
+END//
+DELIMITER ;
+
+
 -- Las 48 horas de corrección se cuentan desde el fin del turno (S-22).
 -- Mientras el partido siga programado se puede cargar antes de marcarlo jugado, pero no antes de su hora de inicio.
 DELIMITER //
@@ -668,10 +703,8 @@ BEGIN
             SET MESSAGE_TEXT = 'Todavía no empezó el partido: no se puede cargar la planilla.';
     END IF;
     IF EXISTS (
-        SELECT 1 FROM partido p JOIN sancion_jugador s ON s.id_torneo = p.id_torneo
-        WHERE p.id_partido = NEW.id_partido AND s.ci_jugador = NEW.ci_jugador
-          AND p.numero_fecha BETWEEN s.numero_fecha_inicio
-              AND s.numero_fecha_inicio + s.cantidad_fechas - 1
+        SELECT 1 FROM partido p WHERE p.id_partido = NEW.id_partido
+          AND jugador_suspendido(NEW.ci_jugador, p.id_torneo, p.numero_fecha)
     ) THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'El jugador está suspendido para esta fecha.';
@@ -705,10 +738,8 @@ BEGIN
             SET MESSAGE_TEXT = 'No se puede cargar la planilla de un partido cancelado o postergado.';
     END IF;
     IF EXISTS (
-        SELECT 1 FROM partido p JOIN sancion_jugador s ON s.id_torneo = p.id_torneo
-        WHERE p.id_partido = NEW.id_partido AND s.ci_jugador = NEW.ci_jugador
-          AND p.numero_fecha BETWEEN s.numero_fecha_inicio
-              AND s.numero_fecha_inicio + s.cantidad_fechas - 1
+        SELECT 1 FROM partido p WHERE p.id_partido = NEW.id_partido
+          AND jugador_suspendido(NEW.ci_jugador, p.id_torneo, p.numero_fecha)
     ) THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'El jugador está suspendido para esta fecha.';
@@ -793,18 +824,13 @@ BEGIN
     END IF;
 END//
 
+-- Una tarjeta no se modifica: se borra y se carga de nuevo, así su sanción se revierte y se vuelve a generar (S-25).
 CREATE TRIGGER trg_tarjeta_validar_update
 BEFORE UPDATE ON tarjeta
 FOR EACH ROW
 BEGIN
-    IF EXISTS (
-        SELECT 1 FROM partido p JOIN turno t ON t.id_turno = p.id_turno
-        WHERE p.id_partido IN (OLD.id_partido, NEW.id_partido) AND p.estado = 'jugado'
-          AND NOW() > TIMESTAMP(p.dia, t.hora_fin) + INTERVAL 48 HOUR
-    ) THEN
-        SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Pasaron las 48 horas para corregir las tarjetas del partido.';
-    END IF;
+    SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Las tarjetas no se modifican: borrala y cargala de nuevo.';
 END//
 
 CREATE TRIGGER trg_tarjeta_validar_delete
@@ -818,6 +844,65 @@ BEGIN
     ) THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Pasaron las 48 horas para corregir las tarjetas del partido.';
+    END IF;
+    -- fk_sancion_tarjeta es RESTRICT: la sanción que generó la tarjeta se borra antes (ADR 0010).
+    IF OLD.color = 'roja' THEN
+        DELETE FROM sancion_jugador WHERE id_tarjeta = OLD.id_tarjeta;
+    ELSE
+        CALL recalcular_sanciones_amarillas(OLD.ci_jugador,
+            (SELECT id_torneo FROM partido WHERE id_partido = OLD.id_partido), OLD.id_tarjeta);
+    END IF;
+END//
+
+CREATE TRIGGER trg_tarjeta_generar_sancion
+AFTER INSERT ON tarjeta
+FOR EACH ROW
+BEGIN
+    IF NEW.color = 'roja' THEN
+        INSERT INTO sancion_jugador (ci_jugador, id_torneo, motivo, numero_fecha_inicio, cantidad_fechas, id_tarjeta)
+        SELECT NEW.ci_jugador, p.id_torneo, 'roja', p.numero_fecha + 1, 1, NEW.id_tarjeta
+        FROM partido p WHERE p.id_partido = NEW.id_partido;
+    ELSE
+        CALL recalcular_sanciones_amarillas(NEW.ci_jugador,
+            (SELECT id_torneo FROM partido WHERE id_partido = NEW.id_partido), 0);
+    END IF;
+END//
+
+-- Las sanciones por tarjeta las generan los triggers de tarjeta; acá controlamos que coincidan con su tarjeta.
+CREATE TRIGGER trg_sancion_validar_insert
+BEFORE INSERT ON sancion_jugador
+FOR EACH ROW
+BEGIN
+    IF NEW.motivo = 'disciplinaria' THEN
+        IF NOT EXISTS (SELECT 1 FROM torneo WHERE id_torneo = NEW.id_torneo AND estado = 'en curso') THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'Las sanciones disciplinarias solo se aplican en una edición en curso.';
+        END IF;
+    ELSEIF NOT EXISTS (
+        SELECT 1 FROM tarjeta t JOIN partido p ON p.id_partido = t.id_partido
+        WHERE t.id_tarjeta = NEW.id_tarjeta AND t.ci_jugador = NEW.ci_jugador
+          AND p.id_torneo = NEW.id_torneo AND NEW.numero_fecha_inicio = p.numero_fecha + 1
+          AND ((NEW.motivo = 'roja' AND t.color = 'roja')
+               OR (NEW.motivo = 'acumulación de amarillas' AND t.color = 'amarilla'))
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'La sanción no coincide con la tarjeta que la origina.';
+    END IF;
+END//
+
+CREATE TRIGGER trg_sancion_validar_update
+BEFORE UPDATE ON sancion_jugador
+FOR EACH ROW
+BEGIN
+    IF OLD.motivo <> 'disciplinaria' OR NEW.motivo <> 'disciplinaria' THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Las sanciones por tarjeta no se modifican: se revierten borrando la tarjeta.';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM torneo WHERE id_torneo IN (OLD.id_torneo, NEW.id_torneo) AND estado <> 'en curso'
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Las sanciones disciplinarias solo se aplican en una edición en curso.';
     END IF;
 END//
 DELIMITER ;

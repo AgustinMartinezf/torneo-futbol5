@@ -218,3 +218,28 @@ export function validarPartido(valores, original, torneos, equipos, turnos, part
   }
   return errores
 }
+
+export const MOTIVOS_SANCION = ['roja', 'acumulación de amarillas', 'disciplinaria']
+
+export function validarSancion(valores, torneos, plantel) {
+  const errores = {}
+  const torneo = torneos.find((t) => t.id_torneo === Number(valores.id_torneo))
+  if (!torneo) {
+    errores.id_torneo = 'Seleccioná una edición.'
+  } else if (torneo.estado !== 'en curso') {
+    errores.id_torneo = 'La edición debe estar en curso.'
+  }
+  if (!valores.id_equipo) errores.id_equipo = 'Seleccioná un equipo.'
+  if (!plantel.some((j) => j.ci_jugador === valores.ci_jugador)) {
+    errores.ci_jugador = 'Seleccioná un jugador del plantel.'
+  }
+  const inicio = Number(valores.numero_fecha_inicio)
+  if (!Number.isInteger(inicio) || inicio < 1 || inicio > 255) {
+    errores.numero_fecha_inicio = 'Ingresá una fecha de inicio entre 1 y 255.'
+  }
+  const cantidad = Number(valores.cantidad_fechas)
+  if (!Number.isInteger(cantidad) || cantidad < 1 || cantidad > 255) {
+    errores.cantidad_fechas = 'Ingresá una cantidad de fechas entre 1 y 255.'
+  }
+  return errores
+}

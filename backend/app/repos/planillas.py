@@ -58,9 +58,7 @@ def listar_planteles(conn, id_partido: int) -> list[dict]:
             "SELECT ejt.id_equipo, ejt.ci_jugador, j.nombre, j.apellido, ejt.numero_camiseta, "
             "EXISTS (SELECT 1 FROM planilla_partido pp WHERE pp.id_partido = p.id_partido "
             "AND pp.ci_jugador = ejt.ci_jugador) AS presente, "
-            "EXISTS (SELECT 1 FROM sancion_jugador s WHERE s.ci_jugador = ejt.ci_jugador "
-            "AND s.id_torneo = p.id_torneo AND p.numero_fecha BETWEEN s.numero_fecha_inicio "
-            "AND s.numero_fecha_inicio + s.cantidad_fechas - 1) AS suspendido "
+            "jugador_suspendido(ejt.ci_jugador, p.id_torneo, p.numero_fecha) AS suspendido "
             "FROM partido p JOIN equipo_jugador_torneo ejt "
             "ON ejt.id_equipo IN (p.id_equipo_local, p.id_equipo_visitante) "
             "JOIN jugador j ON j.ci = ejt.ci_jugador WHERE p.id_partido = %s "
@@ -121,10 +119,8 @@ def jugador_suspendido(conn, id_partido: int, ci_jugador: str) -> bool:
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "SELECT 1 FROM partido p JOIN sancion_jugador s ON s.id_torneo = p.id_torneo "
-            "WHERE p.id_partido = %s AND s.ci_jugador = %s "
-            "AND p.numero_fecha BETWEEN s.numero_fecha_inicio "
-            "AND s.numero_fecha_inicio + s.cantidad_fechas - 1 LIMIT 1",
+            "SELECT 1 FROM partido p WHERE p.id_partido = %s "
+            "AND jugador_suspendido(%s, p.id_torneo, p.numero_fecha) LIMIT 1",
             (id_partido, ci_jugador),
         )
         return cursor.fetchone() is not None

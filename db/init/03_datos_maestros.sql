@@ -246,3 +246,8 @@ INSERT INTO tarjeta (id_partido, ci_jugador, minuto, color) VALUES
     (9, '50000050', 55, 'roja');
 
 UPDATE partido SET estado = 'jugado' WHERE id_partido BETWEEN 1 AND 9;
+
+-- Las tarjetas de arriba generan solas las sanciones de 50000000 (acumulación) y 50000050 (roja) para la fecha 4.
+-- Disciplinaria de 2 fechas en fechas sin planillas cargadas.
+INSERT INTO sancion_jugador (ci_jugador, id_torneo, motivo, numero_fecha_inicio, cantidad_fechas) VALUES
+    ('50000408', 2, 'disciplinaria', 4, 2);

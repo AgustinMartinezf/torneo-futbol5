@@ -42,6 +42,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON torneo_futbol5.gol TO 'app_planillero'@'
 GRANT SELECT, INSERT, UPDATE, DELETE ON torneo_futbol5.tarjeta TO 'app_planillero'@'%';
 -- Sin UPDATE en partido: lo marca como jugado con el procedimiento.
 GRANT EXECUTE ON PROCEDURE torneo_futbol5.marcar_partido_jugado TO 'app_planillero'@'%';
+GRANT EXECUTE ON FUNCTION torneo_futbol5.jugador_suspendido TO 'app_planillero'@'%';
 
 -- Cada tabla o vista nueva lleva su GRANT para los dos usuarios, y cada procedimiento
 -- que use el planillero lleva su GRANT EXECUTE.

@@ -105,14 +105,18 @@ valida el front y el back.
 | Planilla: jugador del plantel de su equipo | `fk_planilla_plantel` | implementada |
 | Planilla: equipo es local o visitante del partido | `trg_planilla_validar_insert` / `_update` | implementada |
 | Planilla: solo una vez disputado el partido (no antes de su hora de inicio) | `trg_planilla_validar_insert` (S-22) | implementada |
-| Planilla: jugador no suspendido | `trg_planilla_validar_insert` / `_update` (lee `sancion_jugador`) | implementada |
+| Planilla: jugador no suspendido | `trg_planilla_validar_insert` / `_update` con la función `jugador_suspendido` | implementada |
 | Goles/tarjetas solo de jugadores en la planilla | `fk_gol_planilla`, `fk_tarjeta_planilla` | implementada |
 | Resultado calculado desde los goles | no se guarda; lo calcula la vista `v_resultado_partido` (el autogol suma al rival) | implementada |
 | `jugado` solo si el día y turno pasaron | procedimiento `marcar_partido_jugado` (planillero) + `trg_partido_validar_update` | implementada |
 | Partido jugado no se elimina | RESTRICT desde la planilla + `trg_partido_validar_delete` | implementada |
 | Corrección del resultado solo en 48 h | `trg_planilla_validar_*`, `trg_gol_validar_*`, `trg_tarjeta_validar_*` (S-22) | implementada |
-| Sanción automática (roja / 3 amarillas) | trigger; `chk_sancion_origen` fija 1 fecha | parcial, falta el trigger de sanciones |
-| Suspendido no figura en planilla | `trg_planilla_validar_insert` / `_update` | implementada (falta generar las sanciones automáticas) |
+| Sanción automática por roja, 1 fecha desde la fecha siguiente | `trg_tarjeta_generar_sancion`; `chk_sancion_origen` fija 1 fecha | implementada |
+| Sanción automática por cada 3 amarillas en la edición | `trg_tarjeta_generar_sancion` y procedimiento `recalcular_sanciones_amarillas` (S-23) | implementada |
+| Al borrar una tarjeta se revierte su sanción | `trg_tarjeta_validar_delete` (S-24); las tarjetas no se modifican (`trg_tarjeta_validar_update`, S-25) | implementada |
+| Una sanción automática coincide con su tarjeta y no se edita a mano | `trg_sancion_validar_insert` / `_update`, `uq_sancion_tarjeta` | implementada |
+| Sanciones disciplinarias de varias fechas, en ediciones en curso | `trg_sancion_validar_insert` / `_update` (S-27) | implementada |
+| Suspendido no figura en planilla de las fechas de su sanción | `trg_planilla_validar_insert` / `_update` con `jugador_suspendido` (S-26) | implementada |
 | Roles administrador / planillero | ENUM en `login`; usuarios de BD `app_admin` y `app_planillero` | implementada |
 
 ### 3.3 Seguridad (usuarios de base de datos y roles de la aplicación)
@@ -133,6 +137,11 @@ permiso para modificar la columna `estado`, pero MySQL no deja limitar a qué va
 postergar partidos, que libera la cancha y el cruce. El procedimiento es `SQL SECURITY DEFINER`: corre con los permisos
 de quien lo creó, y solo pasa un partido de `programado` a `jugado` si ya terminó su turno. Al planillero le damos
 `EXECUTE` sobre ese procedimiento y nada más sobre `partido`.
+
+Con las sanciones pasa algo parecido. El planillero no tiene permiso para escribir en `sancion_jugador`, pero cuando
+carga o borra una tarjeta los triggers de `tarjeta` crean o borran la sanción que corresponde. Los triggers también
+corren con los permisos de quien los creó, así que no hace falta darle más permisos. Para saber si un jugador está
+suspendido, el back del planillero usa la función `jugador_suspendido`, y por eso tiene `EXECUTE` sobre ella.
 
 Los permisos están en [`db/init/02_usuarios.sql`](../db/init/02_usuarios.sql). A los dos usuarios les damos permisos
 tabla por tabla, también al administrador. Al principio `app_admin` tenía permisos sobre toda la base, pero así MySQL
