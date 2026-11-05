@@ -1,11 +1,6 @@
 # Supuestos y datos del dominio
 
-Acá anotamos las cosas que la letra no dice y cómo las resolvimos. Si la letra dice otra cosa, vale la letra.
-
-## Datos confirmados
-| Id | Dato | Dónde impacta |
-|---|---|---|
-| D-01 | El partido se juega en un único tiempo de 60 minutos. | `chk_gol_minuto` y `chk_tarjeta_minuto`: `minuto BETWEEN 1 AND 60` |
+Acá anotamos las cosas que la letra no dice y cómo las resolvimos.
 
 ## Supuestos
 | Id | Supuesto | Dónde impacta |
