@@ -16,6 +16,13 @@ puedan apuntarle.
 Poner la PK solo en `id_partido`. Sería lo más correcto en teoría, pero preferimos no cambiar la PK de la letra. Lo
 dejamos anotado en el informe como mejora que pensamos y no hicimos.
 
+También pensamos la otra lectura de la PK de la letra: `partido` como entidad débil de `torneo`, con `id_partido`
+numerado dentro de cada edición (partido 1 del torneo 1, partido 1 del torneo 2). Así la PK `(id_partido, id_torneo)`
+sí sería mínima. La descartamos por tres razones. En la letra `planilla_partido`, `gol` y `tarjeta` referencian solo
+`id_partido`, así que tiene que ser único por sí solo. Para que no lo fuera habría que agregar `id_torneo` a esas tres
+tablas y calcular el número de cada partido a mano, porque `AUTO_INCREMENT` no numera por edición. Y el orden de los
+partidos dentro de la edición ya lo da `numero_fecha`.
+
 ## Qué implica
 Quedan dos índices únicos que empiezan con `id_partido`, que no es un problema. En el back los partidos se buscan solo
 por `id_partido`.

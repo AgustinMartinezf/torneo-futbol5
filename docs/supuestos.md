@@ -1,7 +1,6 @@
 # Supuestos y datos del dominio
 
-Acá anotamos las cosas que la letra no dice y cómo las resolvimos. Si la letra dice otra cosa, vale la letra. Al final
-están las preguntas que tenemos para el docente.
+Acá anotamos las cosas que la letra no dice y cómo las resolvimos. Si la letra dice otra cosa, vale la letra.
 
 ## Datos confirmados
 | Id | Dato | Dónde impacta |
@@ -46,9 +45,3 @@ están las preguntas que tenemos para el docente.
 Los planteles pueden tener menos de cinco jugadores mientras los cargamos durante la inscripción. Exigimos entre
 cinco y diez, con capitán, al pasar la edición a en curso. El máximo de diez y el cupo de docentes y funcionarios
 se controlan en cada alta o cambio.
-
-## Preguntas para el docente
-1. (S-03) ¿Una facultad puede inscribir más de un equipo en la misma edición? Hoy el modelo lo permite.
-2. (S-01) Un partido postergado, ¿tiene que seguir bloqueando el cruce entre esos dos equipos para que se juegue más adelante, o se toma como no programado?
-3. (S-02) ¿Los partidos tienen que jugarse entre la `fecha_inicio` y la `fecha_fin` del torneo?
-4. (S-12) ¿Está bien llamar a las columnas `contrasena` y `direccion`, sin ñ ni tilde?
