@@ -59,12 +59,10 @@ def jugador_en_edicion(conn, ci_jugador: str, id_torneo: int) -> bool:
 def crear(conn, datos: dict) -> dict:
     cursor = conn.cursor()
     try:
-        cursor.execute(
-            "INSERT INTO sancion_jugador (ci_jugador, id_torneo, motivo, numero_fecha_inicio, cantidad_fechas) "
-            "VALUES (%s, %s, 'disciplinaria', %s, %s)",
-            (datos["ci_jugador"], datos["id_torneo"], datos["numero_fecha_inicio"], datos["cantidad_fechas"]),
-        )
-        id_sancion = cursor.lastrowid
+        resultado = cursor.callproc("crear_sancion_disciplinaria", (
+            datos["ci_jugador"], datos["id_torneo"], datos["numero_fecha_inicio"], datos["cantidad_fechas"], 0,
+        ))
+        id_sancion = resultado[4]
         conn.commit()
     finally:
         cursor.close()
@@ -89,7 +87,7 @@ def actualizar(conn, id_sancion: int, datos: dict) -> dict:
 def eliminar(conn, id_sancion: int):
     cursor = conn.cursor()
     try:
-        cursor.execute("DELETE FROM sancion_jugador WHERE id_sancion = %s", (id_sancion,))
+        cursor.execute("CALL borrar_sancion_disciplinaria(%s)", (id_sancion,))
         conn.commit()
     finally:
         cursor.close()

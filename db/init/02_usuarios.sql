@@ -21,7 +21,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON torneo_futbol5.partido TO 'app_admin'@'%
 GRANT SELECT, INSERT, UPDATE, DELETE ON torneo_futbol5.planilla_partido TO 'app_admin'@'%';
 GRANT SELECT, INSERT, UPDATE, DELETE ON torneo_futbol5.gol TO 'app_admin'@'%';
 GRANT SELECT, INSERT, UPDATE, DELETE ON torneo_futbol5.tarjeta TO 'app_admin'@'%';
-GRANT SELECT, INSERT, UPDATE, DELETE ON torneo_futbol5.sancion_jugador TO 'app_admin'@'%';
+-- Las altas y bajas disciplinarias pasan por procedimientos para proteger las sanciones automáticas.
+GRANT SELECT, UPDATE ON torneo_futbol5.sancion_jugador TO 'app_admin'@'%';
 GRANT SELECT ON torneo_futbol5.v_resultado_partido TO 'app_admin'@'%';
 GRANT EXECUTE ON torneo_futbol5.* TO 'app_admin'@'%';
 

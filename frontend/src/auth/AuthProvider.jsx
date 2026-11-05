@@ -13,7 +13,6 @@ function sesionGuardada() {
 }
 
 export default function AuthProvider({ children }) {
-  // sesion = { token, correo, rol } o null si no hay nadie logueado.
   const [sesion, setSesion] = useState(sesionGuardada)
 
   function logout() {

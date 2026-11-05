@@ -169,7 +169,7 @@ export default function PlanillasPage() {
       ]} filas={partido.goles} clave="id_gol" vacio="No hay goles registrados."
       acciones={(g) => <button className="peligro" disabled={operando || !partido.puede_editar}
         onClick={() => ejecutar(`/planillas/${partido.id_partido}/goles/${g.id_gol}`, { method: 'DELETE' })}>Quitar</button>} /></div>
-      {Boolean(partido.puede_editar) && <form className="formulario" onSubmit={agregarGol}>
+      {Boolean(partido.puede_editar) && <form className="formulario" onSubmit={agregarGol} noValidate>
         <div className="campo"><label htmlFor="gol-jugador">Jugador</label><select id="gol-jugador" value={gol.ci_jugador}
           onChange={(e) => setGol({ ...gol, ci_jugador: e.target.value })}>
           <option value="">Seleccionar</option>
@@ -190,7 +190,7 @@ export default function PlanillasPage() {
       ]} filas={partido.tarjetas} clave="id_tarjeta" vacio="No hay tarjetas registradas."
       acciones={(t) => <button className="peligro" disabled={operando || !partido.puede_editar}
         onClick={() => ejecutar(`/planillas/${partido.id_partido}/tarjetas/${t.id_tarjeta}`, { method: 'DELETE' })}>Quitar</button>} /></div>
-      {Boolean(partido.puede_editar) && <form className="formulario" onSubmit={agregarTarjeta}>
+      {Boolean(partido.puede_editar) && <form className="formulario" onSubmit={agregarTarjeta} noValidate>
         <div className="campo"><label htmlFor="tarjeta-jugador">Jugador</label><select id="tarjeta-jugador" value={tarjeta.ci_jugador}
           onChange={(e) => setTarjeta({ ...tarjeta, ci_jugador: e.target.value })}>
           <option value="">Seleccionar</option>

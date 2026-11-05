@@ -12,6 +12,10 @@ Sistema para gestionar equipos, planteles, fixture, planillas de juego, sancione
 
 ## Cómo correrlo (Docker)
 
+Necesitamos Docker Desktop instalado y abierto, y los puertos 3307, 8000 y 5173 libres.
+Si ya está corriendo el proyecto desde otra carpeta, lo detenemos allí con
+`docker compose down` antes de levantar esta copia.
+
 ```bash
 cp .env.example .env        # en desarrollo no cambiar las claves de MySQL (ver Usuarios de prueba)
 ```
@@ -35,10 +39,6 @@ Para recrear la base desde cero:
 ```bash
 docker compose down -v && docker compose up --build
 ```
-
-## Cómo correrlo sin Docker
-
-> Se completa en el turno de documentación final (ver `docs/informe.md`).
 
 ## Estructura
 
@@ -69,8 +69,9 @@ pegamos en el botón Authorize.
 Las cuentas de MySQL son distintas de las de la aplicación:
 
 - `app_admin`: usamos `DB_ADMIN_PASSWORD` de `.env.example`. Puede consultar,
-  insertar, modificar y borrar datos del esquema, sin permisos para cambiar
-  tablas ni dar permisos.
+  insertar, modificar y borrar los datos que administra. Las altas y bajas de
+  sanciones disciplinarias pasan por procedimientos; no puede crear ni borrar
+  sanciones automáticas directamente. No puede cambiar tablas ni dar permisos.
 - `app_planillero`: usamos `DB_PLANILLERO_PASSWORD` de `.env.example`. Puede
   consultar los datos necesarios para cargar planillas, escribir en
   `planilla_partido`, `gol` y `tarjeta`, y marcar un partido como jugado con el
@@ -88,16 +89,16 @@ actualizamos `.env` con los mismos valores. Para una instalación nueva,
 ajustamos las claves del script de usuarios antes de inicializar la base.
 Las claves reales no se suben al repositorio.
 
-Los datos base incluyen cuatro facultades, los cinco turnos de una hora entre
-las 18 y las 23, dos complejos con dos canchas cada uno, una edición en
-inscripción y 52 jugadores ficticios. Cada facultad tiene ocho jugadores de
-grado, tres de posgrado, un docente y un funcionario.
+Los datos de prueba incluyen cinco facultades, cinco turnos de una hora entre las 18 y las 23,
+tres complejos, seis equipos en la edición 2 y 53 jugadores ficticios. En esa edición hay
+tres fechas jugadas, partidos programados, uno postergado y uno cancelado, y sanciones
+por roja, tres amarillas y motivo disciplinario. La dejamos en curso para cargar planillas
+de las fechas 4 y 5 durante la defensa (S-31).
 
 Para comprobar los permisos, entramos a MySQL como `app_planillero` y usamos
 `SHOW GRANTS;`. Un intento de insertar en `jugador` tiene que fallar por permisos.
-Para insertar un gol necesitamos primero un partido con sus equipos, planteles
-y el jugador en la planilla. Esos datos se preparan en las funcionalidades
-correspondientes; los datos maestros de esta etapa no incluyen partidos.
+Para insertar un gol necesitamos un jugador en la planilla del partido. Los partidos
+10 a 13 están programados y sirven para probarlo.
 
 ## Integrantes
 

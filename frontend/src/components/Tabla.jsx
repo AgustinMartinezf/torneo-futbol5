@@ -1,5 +1,3 @@
-// columnas: [{ campo, titulo, mostrar? }]. mostrar(fila) permite formatear la celda.
-// acciones(fila): botones de la última columna (editar, borrar...).
 export default function Tabla({ columnas, filas, clave, acciones, vacio = 'No hay datos para mostrar.' }) {
   if (filas.length === 0) return <p className="vacio">{vacio}</p>
 
