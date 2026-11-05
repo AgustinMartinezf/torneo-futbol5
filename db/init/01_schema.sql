@@ -582,7 +582,7 @@ CREATE TABLE planilla_partido (
 ) ENGINE = InnoDB;
 
 
--- Un partido dura 60 minutos (D-01). El resultado no se guarda: sale de contar los goles,
+-- Tomamos partidos de 60 minutos. El resultado no se guarda: sale de contar los goles,
 -- y el autogol suma al rival.
 CREATE TABLE gol (
     id_gol     INT              NOT NULL AUTO_INCREMENT,
