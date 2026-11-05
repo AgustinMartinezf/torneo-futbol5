@@ -160,8 +160,8 @@ Las claves reales no se suben al repositorio.
 Los datos de prueba incluyen cinco facultades, cinco turnos de una hora entre las 18 y las 23,
 tres complejos, seis equipos en la edición 2 y 53 jugadores ficticios. En esa edición hay
 tres fechas jugadas, partidos programados, uno postergado y uno cancelado, y sanciones
-por roja, tres amarillas y motivo disciplinario. La dejamos en curso para cargar planillas
-de las fechas 4 y 5 durante la defensa (S-31).
+por roja, tres amarillas y motivo disciplinario. La dejamos en curso, con las fechas 4 y 5
+programadas, para poder probar el registro de planillas (S-31).
 
 Para comprobar los permisos, entramos a MySQL como `app_planillero` y usamos
 `SHOW GRANTS;`. Un intento de insertar en `jugador` tiene que fallar por permisos.

@@ -35,7 +35,7 @@ Acá anotamos las cosas que la letra no dice y cómo las resolvimos.
 | S-28 | En el reporte de canchas y turnos contamos los partidos jugados y los programados. Los postergados y los cancelados no, porque liberan la cancha (ADR 0006). | Reporte de canchas y turnos |
 | S-29 | En el porcentaje de partidos por estado el total son todos los partidos de la edición, incluidos los programados, así los cuatro porcentajes suman 100. | Reporte de partidos por estado |
 | S-30 | El reporte de jugadores por facultad y tipo cuenta todos los jugadores registrados, no los de una edición, porque el jugador no pertenece a una edición. Las combinaciones sin jugadores aparecen con 0. El reporte de jugadores sin planilla mira solo las planillas de la edición elegida. | Reportes de jugadores |
-| S-31 | Dejamos la edición 2 en curso en los datos de prueba. Sus fechas 4 y 5 siguen disponibles para cargar planillas durante la defensa; las tres primeras ya están jugadas. | `03_datos_maestros.sql` |
+| S-31 | Dejamos la edición 2 en curso en los datos de prueba: las fechas 1 a 3 están jugadas y las 4 y 5 quedan programadas para poder probar el registro de planillas. | `03_datos_maestros.sql` |
 
 Los planteles pueden tener menos de cinco jugadores mientras los cargamos durante la inscripción. Exigimos entre
 cinco y diez, con capitán, al pasar la edición a en curso. El máximo de diez y el cupo de docentes y funcionarios

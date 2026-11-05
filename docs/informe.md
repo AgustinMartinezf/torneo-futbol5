@@ -1,10 +1,11 @@
 # Informe del Sistema de Gestión del Torneo Interfacultades de Fútbol 5
 
 ## 1. Introducción
-La organización del Torneo Interfacultades de Fútbol 5 de la UCU llevaba el torneo en planillas de cálculo. Así es
-difícil cuidar las reglas: pueden quedar dos partidos en la misma cancha y turno, un equipo puede quedar con dos partidos
-en la misma fecha y un jugador suspendido puede aparecer en la planilla de un partido. El sistema que hicimos gestiona
-las ediciones del torneo, los equipos y sus planteles, el fixture, las planillas de juego, las sanciones y los reportes.
+Este informe acompaña el trabajo obligatorio de Base de Datos 1. La letra pide un sistema para gestionar el Torneo
+Interfacultades de Fútbol 5 de la UCU, que controle sus reglas: entre otras, que una cancha no tenga dos partidos en el
+mismo día y turno, que un equipo no juegue dos partidos en la misma fecha y que un jugador suspendido no figure en la
+planilla de un partido. El sistema que hicimos gestiona las ediciones del torneo, los equipos y sus planteles, el
+fixture, las planillas de juego, las sanciones y los reportes.
 
 La base es MySQL 8.4 y las reglas de la letra están garantizadas en ella con constraints, triggers y procedimientos,
 para que no dependan solo del back o del front. La API está hecha en Python con FastAPI y SQL escrito a mano con
@@ -423,11 +424,11 @@ En la edición del segundo semestre, que no tiene partidos, los reportes devuelv
 
 ### 4.2 Consultas propuestas por el grupo
 
-Elegimos tres consultas que le sirven al área de deportes y que salen con lo que ya guarda el modelo. Siguen las mismas reglas que las pedidas: parámetro de la edición, solo partidos jugados y endpoints solo para el administrador (`/reportes/valla-menos-vencida`, `/reportes/goles-por-tipo` y `/reportes/local-visitante`).
+Elegimos tres consultas que salen con lo que ya guarda el modelo. Siguen las mismas reglas que las pedidas: parámetro de la edición, solo partidos jugados y endpoints solo para el administrador (`/reportes/valla-menos-vencida`, `/reportes/goles-por-tipo` y `/reportes/local-visitante`).
 
 #### Valla menos vencida
 
-Para qué sirve: la tabla de posiciones premia al que hace goles, pero no muestra qué equipo defiende mejor. Con esta consulta la organización puede dar un premio a la valla menos vencida, como en muchos torneos, y ver qué equipos reciben muchos goles por partido.
+Qué muestra: qué equipo recibe menos goles, algo que la tabla de posiciones no deja ver, y el promedio de goles en contra por partido de cada equipo.
 
 Usamos el mismo UNION ALL de local y visitante que en posiciones, pero solo con los goles en contra. Ordenamos por goles en contra de menor a mayor y, si empatan, va primero el que jugó más partidos. Los equipos que todavía no jugaron van al final (`pj = 0` vale 1 para ellos), para que no queden primeros con 0 goles en contra.
 
@@ -451,7 +452,7 @@ ORDER BY pj = 0, gc, pj DESC, e.nombre, e.id_equipo
 
 #### Goles por tipo de jugador
 
-Para qué sirve: el torneo es para estudiantes de grado y posgrado, docentes y funcionarios, y la letra limita a dos docentes o funcionarios por plantel. Esta consulta muestra cuánto aporta cada grupo en la cancha y si docentes y funcionarios realmente juegan, algo útil para revisar ese cupo o para promover la participación de los grupos que menos juegan.
+Qué muestra: cuántos goles hace cada tipo de jugador (grado, posgrado, docente y funcionario) y cuántos jugadores de cada tipo hicieron goles. La elegimos porque la letra distingue esos tipos y limita a dos los docentes o funcionarios por plantel.
 
 Contamos los goles sin autogoles y cuántos jugadores distintos convirtieron, por tipo. Igual que en el reporte de facultades, los cuatro tipos salen de un UNION ALL para que aparezcan aunque no tengan goles.
 
@@ -472,7 +473,7 @@ ORDER BY t.orden
 
 #### Rendimiento de local y visitante
 
-Para qué sirve: en el torneo nadie juega en su cancha, así que ser local o visitante no debería pesar. Si el local gana mucho más, puede ser por el orden de los turnos o por cómo se arma el fixture. Con este dato la organización puede decidir si hace falta balancear quién figura como local en cada fecha.
+Qué muestra: cuántos partidos ganó el equipo que figura como local, cuántos el visitante y cuántos terminaron empatados, y los goles de cada lado. La elegimos porque el modelo distingue local y visitante en cada partido.
 
 Es una sola fila con los partidos ganados por el local, los empates, los ganados por el visitante y los goles de cada lado. Sin partidos jugados devolvemos todo en 0.
 
