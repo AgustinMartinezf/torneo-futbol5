@@ -1,6 +1,19 @@
 # Informe del Sistema de Gestión del Torneo Interfacultades de Fútbol 5
 
 ## 1. Introducción
+La organización del Torneo Interfacultades de Fútbol 5 de la UCU llevaba el torneo en planillas de cálculo. Así es
+difícil cuidar las reglas: pueden quedar dos partidos en la misma cancha y turno, un equipo puede quedar con dos partidos
+en la misma fecha y un jugador suspendido puede aparecer en la planilla de un partido. El sistema que hicimos gestiona
+las ediciones del torneo, los equipos y sus planteles, el fixture, las planillas de juego, las sanciones y los reportes.
+
+La base es MySQL 8.4 y las reglas de la letra están garantizadas en ella con constraints, triggers y procedimientos,
+para que no dependan solo del back o del front. La API está hecha en Python con FastAPI y SQL escrito a mano con
+`mysql-connector-python`, sin ORM, y el front en React. Hay dos roles: el administrador gestiona todo y el planillero
+solo carga planillas, goles y tarjetas. Cada rol usa su propio usuario de MySQL con permisos distintos.
+
+En la sección 2 está el modelo de datos y lo que le cambiamos al de la letra. En la 3, las decisiones de
+implementación: dónde validamos cada regla y cómo armamos la seguridad. En la 4 están las consultas de los reportes, en
+la 5 la bitácora y en la 6 la bibliografía. Cómo instalarlo y correrlo está en el [README](../README.md).
 
 ## 2. Modelo de datos
 El script de la base está en [`db/init/01_schema.sql`](../db/init/01_schema.sql). Las decisiones que tomamos están
@@ -8,6 +21,7 @@ explicadas una por una en [`docs/adr/`](adr/README.md), y lo que tuvimos que sup
 
 ### 2.1 Diagrama entidad-relación
 El diagrama está en [`der/der.md`](der/der.md). Lo hicimos con Mermaid a partir del script.
+El resultado de un partido no se guarda: lo calcula la vista `v_resultado_partido` a partir de los goles.
 
 ### 2.2 Modelo relacional
 Para cada tabla se indica la PK, las FK con su destino, los UNIQUE (UQ) y los CHECK (CK). Todas las columnas son
@@ -59,7 +73,7 @@ un trigger que no deja cambiar el equipo de una fila del plantel (ADR 0007).
 ### 3.1 Arquitectura y tecnologías
 El servidor de MySQL corre con la hora de Uruguay (`TZ: America/Montevideo` en `docker-compose.yml`). Lo necesitamos
 porque las reglas que dependen de la hora, como que un partido solo se marca como jugado si ya terminó su turno, usan
-`NOW()` en la base.
+`NOW()` en la base. Sin Docker, la hora se configura en el servidor con `SET GLOBAL time_zone = '-03:00'` (ver el README).
 
 El backend está separado en tres partes: `routers/` recibe los pedidos HTTP, `schemas/` tiene los modelos de Pydantic
 que validan los datos de entrada y `repos/` tiene las consultas SQL, escritas a mano y siempre con parámetros (`%s`).
@@ -81,7 +95,7 @@ Cuando un valor depende de otras filas, el backend lo comprueba antes de escribi
 | Turnos de 1 h entre 18:00 y 23:00 | Turnos de consulta, sin formulario de cambio | GET /turnos; no hay escritura | `chk_turno_*`; `app_admin` solo puede consultar `turno` (S-14) |
 | Complejo en uno de los 19 departamentos | validarComplejo | ComplejoIn | ENUM `departamento` |
 | Superficie de la cancha `sintético` o `parquet`; techada sí o no | validarCancha | CanchaIn | ENUM `superficie`, `chk_cancha_techada` |
-| Nombre de cancha único dentro del complejo | Formulario muestra el conflicto | Traducción de uq_cancha | `pk_cancha` |
+| Nombre de cancha único dentro del complejo | Formulario muestra el conflicto | Traducción del duplicado en errores.py | `pk_cancha` |
 | Una cancha no cambia de complejo | El complejo no se ofrece como campo editable de cancha | Router de canchas | `trg_cancha_no_cambiar_complejo` (S-15) |
 | No borrar un complejo con canchas ni una cancha con partidos | Confirmación muestra el error | Traducción de FK en errores.py | `fk_cancha_complejo`, `fk_partido_cancha` (RESTRICT) |
 | Capitán es jugador de su plantel | Selector de capitanes del plantel | actualizar_equipo comprueba pertenencia | `fk_equipo_capitan` |
@@ -179,8 +193,9 @@ con el hash usando bcrypt y, si coincide, devuelve un token JWT firmado con el c
 (`JWT_EXPIRES_MINUTES`). Si el correo no existe o la contraseña está mal respondemos lo mismo, "Correo o contraseña
 incorrectos", para no dar pistas de qué cuentas existen.
 
-Generamos una clave JWT aleatoria para cada instalación y la guardamos en `.env`, que no se sube al repositorio.
-La API no inicia si la clave tiene menos de 32 bytes.
+En `.env.example` dejamos una clave de desarrollo para firmar los tokens, así la aplicación levanta copiando el
+ejemplo, igual que con las claves de MySQL. En producción se cambia por una clave aleatoria, que va en `.env` y no se
+sube al repositorio. La API no inicia si la clave tiene menos de 32 bytes.
 
 En cada pedido el back valida el token y abre la conexión de MySQL del rol que viene en él. Los endpoints del
 administrador además piden ese rol, y si entra un planillero responden 403. Sin token, o con uno vencido o adulterado,
@@ -486,3 +501,34 @@ Descartamos una consulta de racha de partidos sin perder: para hacerla bien hac�
 Ver [bitacora.md](bitacora.md).
 
 ## 6. Bibliografía
+
+Material del curso:
+
+- Base de Datos 1, Universidad Católica del Uruguay. Material del curso (teórico y prácticos), 2026.
+
+MySQL 8.4 Reference Manual:
+
+- CREATE TRIGGER Statement. https://dev.mysql.com/doc/refman/8.4/en/create-trigger.html
+- Using Stored Routines. https://dev.mysql.com/doc/refman/8.4/en/stored-routines.html
+- Stored Object Access Control (DEFINER y SQL SECURITY). https://dev.mysql.com/doc/refman/8.4/en/stored-objects-security.html
+- CREATE VIEW Statement. https://dev.mysql.com/doc/refman/8.4/en/create-view.html
+- CREATE TABLE and Generated Columns. https://dev.mysql.com/doc/refman/8.4/en/create-table-generated-columns.html
+- FOREIGN KEY Constraints. https://dev.mysql.com/doc/refman/8.4/en/create-table-foreign-keys.html
+- Variable `restrict_fk_on_non_standard_key`. https://dev.mysql.com/doc/refman/8.4/en/server-system-variables.html#sysvar_restrict_fk_on_non_standard_key
+- GRANT Statement. https://dev.mysql.com/doc/refman/8.4/en/grant.html
+- MySQL Server Time Zone Support. https://dev.mysql.com/doc/refman/8.4/en/time-zone-support.html
+
+Backend:
+
+- FastAPI. https://fastapi.tiangolo.com/
+- Pydantic 2.10. https://docs.pydantic.dev/2.10/
+- MySQL Connector/Python Developer Guide. https://dev.mysql.com/doc/connector-python/en/
+- PyJWT. https://pyjwt.readthedocs.io/en/stable/
+- bcrypt (pyca). https://github.com/pyca/bcrypt
+
+Frontend e infraestructura:
+
+- React 18. https://18.react.dev/
+- React Router 6.28. https://reactrouter.com/6.28.0
+- Vite 5. https://v5.vite.dev/
+- Docker Compose. https://docs.docker.com/compose/
