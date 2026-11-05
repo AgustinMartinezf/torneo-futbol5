@@ -908,20 +908,21 @@ CREATE TRIGGER trg_sancion_validar_insert
 BEFORE INSERT ON sancion_jugador
 FOR EACH ROW
 BEGIN
-    IF EXISTS (
-        SELECT 1 FROM planilla_partido pp
-        JOIN partido p ON p.id_partido = pp.id_partido
-        WHERE pp.ci_jugador = NEW.ci_jugador AND p.id_torneo = NEW.id_torneo
-          AND p.numero_fecha BETWEEN NEW.numero_fecha_inicio
-              AND NEW.numero_fecha_inicio + NEW.cantidad_fechas - 1
-    ) THEN
-        SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'El jugador ya figura en una planilla de las fechas de la sanción.';
-    END IF;
+    -- Solo las disciplinarias chocan con planillas ya cargadas; las automáticas se generan siempre (S-26).
     IF NEW.motivo = 'disciplinaria' THEN
         IF NOT EXISTS (SELECT 1 FROM torneo WHERE id_torneo = NEW.id_torneo AND estado = 'en curso') THEN
             SIGNAL SQLSTATE '45000'
                 SET MESSAGE_TEXT = 'Las sanciones disciplinarias solo se aplican en una edición en curso.';
+        END IF;
+        IF EXISTS (
+            SELECT 1 FROM planilla_partido pp
+            JOIN partido p ON p.id_partido = pp.id_partido
+            WHERE pp.ci_jugador = NEW.ci_jugador AND p.id_torneo = NEW.id_torneo
+              AND p.numero_fecha BETWEEN NEW.numero_fecha_inicio
+                  AND NEW.numero_fecha_inicio + NEW.cantidad_fechas - 1
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'El jugador ya figura en una planilla de las fechas de la sanción.';
         END IF;
     ELSEIF NOT EXISTS (
         SELECT 1 FROM tarjeta t JOIN partido p ON p.id_partido = t.id_partido

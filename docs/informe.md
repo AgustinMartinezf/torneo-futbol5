@@ -116,7 +116,7 @@ Cuando un valor depende de otras filas, el backend lo comprueba antes de escribi
 | Al borrar una tarjeta se revierte su sanción | Botón Quitar tarjeta | Endpoint de baja de tarjeta | `trg_tarjeta_validar_delete` (S-24); las tarjetas no se modifican (`trg_tarjeta_validar_update`, S-25) |
 | Una sanción automática coincide con su tarjeta y no se edita a mano | Automáticas sin Editar/Borrar | Router de sanciones rechaza cambios automáticos | `trg_sancion_validar_insert` / `_update`, `uq_sancion_tarjeta`; `app_admin` no tiene INSERT ni DELETE directos |
 | Sanciones disciplinarias de varias fechas, en ediciones en curso | validarSancion | validar_disciplinaria | `trg_sancion_validar_insert` / `_update` (S-27) |
-| Suspendido no figura en planilla de las fechas de su sanción | Suspendidos no tienen botón Agregar; sanciones muestra el error | agregar_jugador comprueba suspensión; errores.py traduce SIGNAL | Triggers de `planilla_partido` y `sancion_jugador` (S-26) |
+| Suspendido no se agrega a una planilla de las fechas de su sanción; una disciplinaria no se carga sobre una planilla existente, una automática sí y esa planilla no cambia | Suspendidos no tienen botón Agregar; sanciones muestra el error | agregar_jugador comprueba suspensión; errores.py traduce SIGNAL | Triggers de `planilla_partido` y `sancion_jugador` (S-26) |
 | Roles administrador / planillero | Menú y rutas por rol | requiere_rol y conexión por rol | ENUM en `login`; usuarios de BD `app_admin` y `app_planillero` |
 
 Los reportes no guardan resultados: consultan las tablas y la vista de goles. En el front, `ReportesPage` elige la edición

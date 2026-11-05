@@ -166,6 +166,17 @@ INSERT INTO sancion_jugador (ci_jugador, id_torneo, motivo, numero_fecha_inicio,
 VALUES ('50000016', 2, 'disciplinaria', 4, 1);
 ROLLBACK;
 
+SELECT 'S09: roja con planilla cargada en la fecha siguiente (caso positivo)' AS caso;
+START TRANSACTION;
+INSERT INTO planilla_partido VALUES (10, '50000016', 1), (13, '50000016', 1);
+-- Esperado: sin error. La sanción automática se genera y la planilla del partido 13 no cambia (S-26).
+INSERT INTO tarjeta (id_partido, ci_jugador, minuto, color) VALUES (10, '50000016', 20, 'roja');
+SELECT s.motivo, s.numero_fecha_inicio, s.cantidad_fechas,
+       (SELECT COUNT(*) FROM planilla_partido WHERE id_partido = 13 AND ci_jugador = '50000016') AS en_planilla_13
+FROM sancion_jugador s JOIN tarjeta t ON t.id_tarjeta = s.id_tarjeta
+WHERE t.id_partido = 10 AND t.ci_jugador = '50000016';
+ROLLBACK;
+
 SELECT 'T01: la edición nace en inscripción' AS caso;
 -- Esperado: ERROR 1644, una edición debe crearse en inscripción.
 INSERT INTO torneo (nombre, anio, semestre, fecha_inicio, fecha_fin, estado)
