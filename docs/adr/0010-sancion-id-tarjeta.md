@@ -6,6 +6,7 @@ dentro de las 48 horas, a veces hay que revisar la sanción que generaron, y par
 
 ## Qué hicimos
 Agregamos `id_tarjeta` en `sancion_jugador`. Puede ser NULL y es una FK a `tarjeta` con `ON DELETE RESTRICT`.
+
 - Tiene UNIQUE, así una tarjeta no puede generar dos sanciones.
 - Un CHECK pide que las sanciones disciplinarias no tengan tarjeta, y que las automáticas tengan tarjeta y sean de 1 fecha.
 - En la acumulación, la tarjeta que se guarda es la tercera amarilla.
@@ -21,6 +22,6 @@ amarilla, recalcula las sanciones por acumulación del jugador sin esa tarjeta (
 pasa en la misma sentencia y la FK nunca queda apuntando a una tarjeta que no existe. `trg_sancion_validar_insert`
 controla que la CI, la edición, el color y la fecha de una sanción automática coincidan con su tarjeta.
 
-Lo que no controla la base es que alguien con el usuario del administrador borre a mano una sanción automática, porque
-ese usuario necesita borrar sanciones disciplinarias. El back no lo deja, y si pasara, la sanción por acumulación se
-vuelve a generar la próxima vez que se cargue o se borre una amarilla del jugador.
+El usuario del administrador no tiene INSERT ni DELETE directos en `sancion_jugador`. Para las disciplinarias usamos
+dos procedimientos: uno siempre crea con motivo `disciplinaria` y el otro comprueba ese motivo antes de borrar.
+Así, tampoco con una conexión directa de la aplicación se puede crear o borrar una sanción automática a mano.

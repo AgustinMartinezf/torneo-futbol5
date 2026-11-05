@@ -1,6 +1,5 @@
 export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
-// Lo registra el contexto de auth: cierra la sesión cuando el back responde 401.
 let alNoAutorizado = null
 
 export function registrarAlNoAutorizado(funcion) {
@@ -22,7 +21,6 @@ export async function api(path, { method = 'GET', body, token } = {}) {
     throw new Error('No hay conexión con el servidor.')
   }
   const data = await res.json().catch(() => null)
-  // Un 401 con token quiere decir que la sesión venció o no es válida.
   if (res.status === 401 && token && alNoAutorizado) alNoAutorizado()
   if (!res.ok) throw new Error(textoDeError(data?.detail, res.status))
   return data

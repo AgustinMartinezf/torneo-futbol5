@@ -69,55 +69,74 @@ de un trigger o procedimiento, con un `SIGNAL SQLSTATE '45000'` que ya trae el m
 tenemos un manejo común que transforma esos errores en respuestas con un `detail` que entiende el usuario: 400 para datos
 inválidos, 409 para duplicados o datos que están en uso y 403 si el usuario de MySQL no tiene permiso. Los errores de
 validación de Pydantic también los pasamos a un mensaje en español. El front muestra ese `detail` tal cual.
-### 3.2 Reglas de negocio: dónde se valida cada una (front / back / base de datos)
-En esta tabla pusimos cada regla de la letra y cómo la controla la base. Las que se pueden hacer con constraints ya
-están en el script. Las otras las vamos a hacer con triggers cuando hagamos esa parte, y ahí también agregamos lo que
-valida el front y el back.
 
-| Regla de la letra | Base de datos | Estado |
-|---|---|---|
-| Torneo con 3 estados; tipos de jugador; estados de partido; colores; motivos | ENUM | implementada |
-| Una edición por semestre | `uq_torneo_anio_semestre` | implementada |
-| Turnos de 1 h entre 18:00 y 23:00 | `chk_turno_*`; `app_admin` solo puede consultar `turno` (S-14) | implementada |
-| Complejo en uno de los 19 departamentos | ENUM `departamento` | implementada |
-| Superficie de la cancha `sintético` o `parquet`; techada sí o no | ENUM `superficie`, `chk_cancha_techada` | implementada |
-| Nombre de cancha único dentro del complejo | `pk_cancha` | implementada |
-| Una cancha no cambia de complejo | `trg_cancha_no_cambiar_complejo` (S-15) | implementada |
-| No borrar un complejo con canchas ni una cancha con partidos | `fk_cancha_complejo`, `fk_partido_cancha` (RESTRICT) | implementada |
-| Capitán es jugador de su plantel | `fk_equipo_capitan` | implementada |
-| Equipo con capitán al pasar a `en curso` | `trg_torneo_validar_update` | implementada |
-| Máx. 2 docentes/funcionarios por plantel | triggers del plantel y `trg_jugador_validar_update` | implementada |
-| Máx. 10 jugadores; mínimo 5 al iniciar la edición | `trg_ejt_validar_insert`, `trg_torneo_validar_update` | implementada |
-| Jugadores de la facultad del equipo | triggers del plantel, de jugador y de equipo | implementada |
-| Un jugador en un solo equipo por edición | `uq_ejt_jugador_torneo` + `fk_ejt_equipo` | implementada |
-| Un jugador no se cambia de equipo con un UPDATE (se saca y se inscribe de nuevo) | `trg_ejt_no_cambiar_equipo` | implementada |
-| Planteles modificables solo en `inscripción` | `trg_ejt_validar_insert`, `trg_ejt_no_cambiar_equipo`, `trg_ejt_validar_delete` | implementada |
-| Estados de la edición avanzan en orden | `trg_torneo_validar_insert`, `trg_torneo_validar_update` (S-16) | implementada |
-| Partido: ambos equipos de la misma edición | `fk_partido_local`, `fk_partido_visitante` | implementada |
-| Partido: equipos con ≥ 5 jugadores | `trg_partido_validar_insert` / `_update` | implementada |
-| Partido: solo en una edición en curso, se crea como programado | `trg_partido_validar_insert` / `_update` (S-19) | implementada |
-| No enfrentarse a sí mismo | `chk_partido_equipos_distintos` | implementada |
-| No repetir rival salvo cancelado | `uq_partido_cruce` | implementada |
-| Un partido por equipo en la misma fecha | `trg_partido_validar_insert` / `_update` (S-20) | implementada |
-| Partido: día dentro de las fechas de la edición | `trg_partido_validar_insert` / `_update` (S-02) | implementada |
-| Cambios de estado del partido; jugado y cancelado no cambian | `trg_partido_validar_update` (S-01, S-19) | implementada |
-| Cancha: un partido por día y turno | `uq_partido_cancha_turno` | implementada |
-| Planilla: jugador del plantel de su equipo | `fk_planilla_plantel` | implementada |
-| Planilla: equipo es local o visitante del partido | `trg_planilla_validar_insert` / `_update` | implementada |
-| Planilla: solo una vez disputado el partido (no antes de su hora de inicio) | `trg_planilla_validar_insert` (S-22) | implementada |
-| Planilla: jugador no suspendido | `trg_planilla_validar_insert` / `_update` con la función `jugador_suspendido` | implementada |
-| Goles/tarjetas solo de jugadores en la planilla | `fk_gol_planilla`, `fk_tarjeta_planilla` | implementada |
-| Resultado calculado desde los goles | no se guarda; lo calcula la vista `v_resultado_partido` (el autogol suma al rival) | implementada |
-| `jugado` solo si el día y turno pasaron | procedimiento `marcar_partido_jugado` (planillero) + `trg_partido_validar_update` | implementada |
-| Partido jugado no se elimina | RESTRICT desde la planilla + `trg_partido_validar_delete` | implementada |
-| Corrección del resultado solo en 48 h | `trg_planilla_validar_*`, `trg_gol_validar_*`, `trg_tarjeta_validar_*` (S-22) | implementada |
-| Sanción automática por roja, 1 fecha desde la fecha siguiente | `trg_tarjeta_generar_sancion`; `chk_sancion_origen` fija 1 fecha | implementada |
-| Sanción automática por cada 3 amarillas en la edición | `trg_tarjeta_generar_sancion` y procedimiento `recalcular_sanciones_amarillas` (S-23) | implementada |
-| Al borrar una tarjeta se revierte su sanción | `trg_tarjeta_validar_delete` (S-24); las tarjetas no se modifican (`trg_tarjeta_validar_update`, S-25) | implementada |
-| Una sanción automática coincide con su tarjeta y no se edita a mano | `trg_sancion_validar_insert` / `_update`, `uq_sancion_tarjeta` | implementada |
-| Sanciones disciplinarias de varias fechas, en ediciones en curso | `trg_sancion_validar_insert` / `_update` (S-27) | implementada |
-| Suspendido no figura en planilla de las fechas de su sanción | `trg_planilla_validar_insert` / `_update` con `jugador_suspendido` (S-26) | implementada |
-| Roles administrador / planillero | ENUM en `login`; usuarios de BD `app_admin` y `app_planillero` | implementada |
+### 3.2 Reglas de negocio: dónde se valida cada una (front / back / base de datos)
+En cada regla indicamos qué evita el formulario, qué comprueba la API y qué garantiza MySQL.
+Cuando un valor depende de otras filas, el backend lo comprueba antes de escribir y la base vuelve a controlarlo.
+
+| Regla de la letra | Front | Back | Base de datos |
+|---|---|---|---|
+| Torneo con 3 estados; tipos de jugador; estados de partido; colores; motivos | Selectores de los formularios | Schemas con valores permitidos | ENUM |
+| Una edición por semestre | validarTorneo | Router de torneos y traducción de duplicados | `uq_torneo_anio_semestre` |
+| Turnos de 1 h entre 18:00 y 23:00 | Turnos de consulta, sin formulario de cambio | GET /turnos; no hay escritura | `chk_turno_*`; `app_admin` solo puede consultar `turno` (S-14) |
+| Complejo en uno de los 19 departamentos | validarComplejo | ComplejoIn | ENUM `departamento` |
+| Superficie de la cancha `sintético` o `parquet`; techada sí o no | validarCancha | CanchaIn | ENUM `superficie`, `chk_cancha_techada` |
+| Nombre de cancha único dentro del complejo | Formulario muestra el conflicto | Traducción de uq_cancha | `pk_cancha` |
+| Una cancha no cambia de complejo | El complejo no se ofrece como campo editable de cancha | Router de canchas | `trg_cancha_no_cambiar_complejo` (S-15) |
+| No borrar un complejo con canchas ni una cancha con partidos | Confirmación muestra el error | Traducción de FK en errores.py | `fk_cancha_complejo`, `fk_partido_cancha` (RESTRICT) |
+| Capitán es jugador de su plantel | Selector de capitanes del plantel | actualizar_equipo comprueba pertenencia | `fk_equipo_capitan` |
+| Equipo con capitán al pasar a `en curso` | validarTorneo | Router de torneos comprueba plantel y capitán | `trg_torneo_validar_update` |
+| Máx. 2 docentes/funcionarios por plantel | Cupo visible y candidatos restringidos | inscribir_jugador comprueba el cupo | triggers del plantel y `trg_jugador_validar_update` |
+| Máx. 10 jugadores; mínimo 5 al iniciar la edición | Cupo visible; validarTorneo al iniciar | inscribir_jugador y router de torneos | `trg_ejt_validar_insert`, `trg_torneo_validar_update` |
+| Jugadores de la facultad del equipo | Lista jugadores de la facultad | inscribir_jugador comprueba facultad | triggers del plantel, de jugador y de equipo |
+| Un jugador en un solo equipo por edición | Lista jugadores disponibles | inscribir_jugador comprueba inscripción | `uq_ejt_jugador_torneo` + `fk_ejt_equipo` |
+| Un jugador no se cambia de equipo con un UPDATE (se saca y se inscribe de nuevo) | Solo se permite sacar e inscribir | No hay endpoint para cambiar equipo | `trg_ejt_no_cambiar_equipo` |
+| Planteles modificables solo en `inscripción` | Plantel de solo lectura fuera de inscripción | validar_inscripcion | `trg_ejt_validar_insert`, `trg_ejt_no_cambiar_equipo`, `trg_ejt_validar_delete` |
+| Estados de la edición avanzan en orden | validarTorneo | Router de torneos comprueba transición | `trg_torneo_validar_insert`, `trg_torneo_validar_update` (S-16) |
+| Partido: ambos equipos de la misma edición | validarPartido | validar_datos_partido | `fk_partido_local`, `fk_partido_visitante` |
+| Partido: equipos con ≥ 5 jugadores | validarPartido | validar_datos_partido | `trg_partido_validar_insert` / `_update` |
+| Partido: solo en una edición en curso, se crea como programado | Selector solo de ediciones en curso | crear_partido y validar_datos_partido | `trg_partido_validar_insert` / `_update` (S-19) |
+| No enfrentarse a sí mismo | validarPartido | PartidoIn y validar_datos_partido | `chk_partido_equipos_distintos` |
+| No repetir rival salvo cancelado | validarPartido | validar_datos_partido | `uq_partido_cruce` |
+| Un partido por equipo en la misma fecha | validarPartido | validar_datos_partido | `trg_partido_validar_insert` / `_update` (S-20) |
+| Partido: día dentro de las fechas de la edición | validarPartido | validar_datos_partido | `trg_partido_validar_insert` / `_update` (S-02) |
+| Cambios de estado del partido; jugado y cancelado no cambian | TRANSICIONES_PARTIDO y campos bloqueados | actualizar_partido comprueba transición | `trg_partido_validar_update` (S-01, S-19) |
+| Cancha: un partido por día y turno | validarPartido | validar_datos_partido | `uq_partido_cancha_turno` |
+| Planilla: jugador del plantel de su equipo | Solo muestra jugadores del plantel | agregar_jugador comprueba pertenencia | `fk_planilla_plantel` |
+| Planilla: equipo es local o visitante del partido | Planilla del partido elegido | agregar_jugador comprueba equipos | `trg_planilla_validar_insert` / `_update` |
+| Planilla: solo una vez disputado el partido (no antes de su hora de inicio) | Botones bloqueados antes del inicio | agregar_jugador comprueba turno_empezado | `trg_planilla_validar_insert` / `_update` (S-22) |
+| Planilla: jugador no suspendido | Agregar deshabilitado para suspendidos | agregar_jugador consulta suspensión | `trg_planilla_validar_insert` / `_update` con la función `jugador_suspendido` |
+| Goles/tarjetas solo de jugadores en la planilla | Selectores de jugadores presentes | agregar_gol y agregar_tarjeta comprueban planilla | `fk_gol_planilla`, `fk_tarjeta_planilla` |
+| Resultado calculado desde los goles | Resultado visible en PlanillasPage | Repo consulta la vista | no se guarda; lo calcula la vista `v_resultado_partido` (el autogol suma al rival) |
+| `jugado` solo si el día y turno pasaron | Botón habilitado al terminar el turno | marcar_partido_jugado comprueba hora | procedimiento `marcar_partido_jugado` (planillero) + `trg_partido_validar_update` |
+| Partido jugado no se elimina | No se ofrece borrar un jugado | eliminar_partido lo rechaza | RESTRICT desde la planilla + `trg_partido_validar_delete` |
+| Corrección del resultado solo en 48 h | Planilla de solo lectura al vencer | Routers de planillas comprueban puede_editar | `trg_planilla_validar_*`, `trg_gol_validar_*`, `trg_tarjeta_validar_*` (S-22) |
+| Sanción automática por roja, 1 fecha desde la fecha siguiente | Se muestra sanción automática, sin formulario | No hay endpoint de alta automática | `trg_tarjeta_generar_sancion`; `chk_sancion_origen` fija 1 fecha |
+| Sanción automática por cada 3 amarillas en la edición | Se muestra sanción automática, sin formulario | No hay endpoint de alta automática | `trg_tarjeta_generar_sancion` y procedimiento `recalcular_sanciones_amarillas` (S-23) |
+| Al borrar una tarjeta se revierte su sanción | Botón Quitar tarjeta | Endpoint de baja de tarjeta | `trg_tarjeta_validar_delete` (S-24); las tarjetas no se modifican (`trg_tarjeta_validar_update`, S-25) |
+| Una sanción automática coincide con su tarjeta y no se edita a mano | Automáticas sin Editar/Borrar | Router de sanciones rechaza cambios automáticos | `trg_sancion_validar_insert` / `_update`, `uq_sancion_tarjeta`; `app_admin` no tiene INSERT ni DELETE directos |
+| Sanciones disciplinarias de varias fechas, en ediciones en curso | validarSancion | validar_disciplinaria | `trg_sancion_validar_insert` / `_update` (S-27) |
+| Suspendido no se agrega a una planilla de las fechas de su sanción; una disciplinaria no se carga sobre una planilla existente, una automática sí y esa planilla no cambia | Suspendidos no tienen botón Agregar; sanciones muestra el error | agregar_jugador comprueba suspensión; errores.py traduce SIGNAL | Triggers de `planilla_partido` y `sancion_jugador` (S-26) |
+| Roles administrador / planillero | Menú y rutas por rol | requiere_rol y conexión por rol | ENUM en `login`; usuarios de BD `app_admin` y `app_planillero` |
+
+Los reportes no guardan resultados: consultan las tablas y la vista de goles. En el front, `ReportesPage` elige la edición
+y muestra las tablas; en el back, cada ruta de `/reportes` exige administrador y valida la edición cuando corresponde.
+
+| Reporte de la letra | Front | Back | Consulta en la base |
+|---|---|---|---|
+| Posiciones: PJ, PG, PE, PP, GF, GC, DG, Pts; orden por puntos, diferencia y goles | Tabla de posiciones | `/reportes/posiciones` | `partido`, `equipo`, `v_resultado_partido`; victoria 3, empate 1 |
+| Diez goleadores sin autogoles | Goleadores | `/reportes/goleadores` | `gol` con `autogol = 0` y límite 10 |
+| Fair play: amarilla 1 y roja 3, gana menor puntaje | Fair play | `/reportes/fair-play` | `tarjeta`, `planilla_partido`, `equipo` |
+| Promedio de goles por fecha y edición | Promedios | `/reportes/promedios` | `v_resultado_partido` y partidos jugados |
+| Canchas más utilizadas | Canchas | `/reportes/canchas` | `cancha` y partidos jugados o programados (S-28) |
+| Turnos más utilizados | Turnos | `/reportes/turnos` | `turno` y partidos jugados o programados (S-28) |
+| Jugadores por facultad y tipo | Jugadores por facultad | `/reportes/jugadores-por-facultad` | `facultad`, `jugador` y los cuatro tipos |
+| Inscriptos que nunca figuran en una planilla | Sin planilla | `/reportes/sin-planilla` | `equipo_jugador_torneo`, `planilla_partido`, `partido` |
+| Sanciones por equipo y motivo | Sanciones | `/reportes/sanciones` | `sancion_jugador` y plantel de la edición |
+| Porcentaje de partidos por estado | Partidos por estado | `/reportes/estados` | `partido`; total incluye programados (S-29) |
+| Valla menos vencida, propuesta del grupo | Valla menos vencida | `/reportes/valla-menos-vencida` | `v_resultado_partido` y partidos jugados |
+| Goles por tipo de jugador, propuesta del grupo | Goles por tipo | `/reportes/goles-por-tipo` | `gol`, `jugador`; autogoles separados |
+| Rendimiento local y visitante, propuesta del grupo | Local y visitante | `/reportes/local-visitante` | `v_resultado_partido` y partidos jugados |
 
 ### 3.3 Seguridad (usuarios de base de datos y roles de la aplicación)
 La seguridad la pusimos en dos lugares. En la aplicación, cada cuenta de `login` tiene un rol (administrador o
@@ -125,9 +144,9 @@ planillero) y la contraseña se guarda como hash bcrypt. En la base creamos un u
 la conexión del rol de quien inició sesión. Así, aunque el back tuviera un error, la base no deja que un planillero
 haga algo que no le corresponde.
 
-- `app_admin` puede consultar, insertar, modificar y borrar datos en todas las tablas del esquema, salvo `turno`, que
-  solo puede consultar porque los turnos son fijos (S-14). No puede crear ni modificar tablas, ni dar permisos a otros
-  usuarios.
+- `app_admin` puede gestionar los datos del esquema. Solo consulta `turno`, porque los turnos son fijos (S-14).
+  En `sancion_jugador` puede consultar y modificar; las altas y bajas disciplinarias pasan por
+  `crear_sancion_disciplinaria` y `borrar_sancion_disciplinaria`. No puede crear ni modificar tablas, ni dar permisos.
 - `app_planillero` puede consultar las tablas que necesita para cargar una planilla: facultades, jugadores, torneos,
   equipos, planteles, complejos, canchas, turnos, partidos y sanciones. Puede insertar, modificar y borrar en
   `planilla_partido`, `gol` y `tarjeta`. No puede modificar `partido` ni leer `login`.
@@ -142,6 +161,10 @@ Con las sanciones pasa algo parecido. El planillero no tiene permiso para escrib
 carga o borra una tarjeta los triggers de `tarjeta` crean o borran la sanción que corresponde. Los triggers también
 corren con los permisos de quien los creó, así que no hace falta darle más permisos. Para saber si un jugador está
 suspendido, el back del planillero usa la función `jugador_suspendido`, y por eso tiene `EXECUTE` sobre ella.
+
+El administrador tampoco tiene INSERT ni DELETE directos en `sancion_jugador`: el back crea y borra sanciones
+disciplinarias mediante dos procedimientos con permisos de definidor. Así no puede alterar una sanción automática
+mediante una conexión directa con el usuario de la aplicación. El trigger impide modificar una automática.
 
 Los permisos están en [`db/init/02_usuarios.sql`](../db/init/02_usuarios.sql). A los dos usuarios les damos permisos
 tabla por tabla, también al administrador. Al principio `app_admin` tenía permisos sobre toda la base, pero así MySQL

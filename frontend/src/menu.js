@@ -1,4 +1,3 @@
-// El menú y las rutas salen de esta lista.
 export const SECCIONES = [
   { ruta: 'jugadores', texto: 'Jugadores', roles: ['administrador'] },
   { ruta: 'facultades', texto: 'Facultades', roles: ['administrador'] },

@@ -1,4 +1,3 @@
-// No valida: cada página valida antes de llamar al back y pasa los errores a cada Campo.
 export default function Formulario({ onSubmit, error, enviando, textoBoton = 'Guardar', onCancelar, children }) {
   function enviar(e) {
     e.preventDefault()

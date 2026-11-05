@@ -1,5 +1,3 @@
--- Datos maestros y de prueba. Cada funcionalidad agrega los que necesita para probarse.
--- La letra pide al menos 6 equipos y 3 fechas disputadas.
 SET NAMES utf8mb4;
 USE torneo_futbol5;
 
@@ -178,7 +176,6 @@ UPDATE torneo SET estado = 'en curso' WHERE id_torneo = 2;
 
 -- Rueda completa de la edición 2: 5 fechas de 3 partidos. Se cargan como programados; el registro
 -- de planillas los marca como jugados. El 14 queda postergado y el 15 cancelado para los reportes.
--- Las columnas generadas no se insertan.
 INSERT INTO partido (id_partido, id_torneo, numero_fecha, id_equipo_local, id_equipo_visitante, dia, id_turno, nombre_cancha, id_complejo) VALUES
     (1, 2, 1, 1, 6, '2026-03-17', 1, 'Cancha 1', 1),
     (2, 2, 1, 2, 5, '2026-03-17', 2, 'Cancha 1', 1),
@@ -199,7 +196,6 @@ INSERT INTO partido (id_partido, id_torneo, numero_fecha, id_equipo_local, id_eq
 UPDATE partido SET estado = 'postergado' WHERE id_partido = 14;
 UPDATE partido SET estado = 'cancelado' WHERE id_partido = 15;
 
--- Registramos cinco participantes por equipo en las primeras tres fechas.
 -- La tercera amarilla y la roja son en la fecha 3; esos jugadores no tienen planilla en la fecha 4.
 INSERT INTO planilla_partido (id_partido, ci_jugador, id_equipo)
 SELECT p.id_partido, ejt.ci_jugador, ejt.id_equipo
@@ -247,7 +243,5 @@ INSERT INTO tarjeta (id_partido, ci_jugador, minuto, color) VALUES
 
 UPDATE partido SET estado = 'jugado' WHERE id_partido BETWEEN 1 AND 9;
 
--- Las tarjetas de arriba generan solas las sanciones de 50000000 (acumulación) y 50000050 (roja) para la fecha 4.
--- Disciplinaria de 2 fechas en fechas sin planillas cargadas.
 INSERT INTO sancion_jugador (ci_jugador, id_torneo, motivo, numero_fecha_inicio, cantidad_fechas) VALUES
     ('50000408', 2, 'disciplinaria', 4, 2);

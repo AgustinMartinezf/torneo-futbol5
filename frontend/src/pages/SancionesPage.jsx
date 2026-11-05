@@ -209,7 +209,7 @@ export default function SancionesPage() {
             valor={formulario.valores.numero_fecha_inicio} onChange={cambiar} error={errores.numero_fecha_inicio} />
           <Campo etiqueta="Cantidad de fechas" nombre="cantidad_fechas" tipo="number" min={1} max={255}
             valor={formulario.valores.cantidad_fechas} onChange={cambiar} error={errores.cantidad_fechas} />
-          <p>Las planillas ya cargadas no cambian: la sanción se aplica a las que se carguen después.</p>
+          <p>No podemos sancionar una fecha en la que el jugador ya figura en una planilla.</p>
         </Formulario>
       </div>}
       {cargando && <p>Cargando sanciones...</p>}

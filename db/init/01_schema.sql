@@ -638,6 +638,34 @@ CREATE TABLE sancion_jugador (
     )
 ) ENGINE = InnoDB;
 
+-- El administrador gestiona las disciplinarias por estos procedimientos. No tiene INSERT ni DELETE
+-- directo en sancion_jugador, así no puede crear ni borrar sanciones automáticas a mano.
+DELIMITER //
+CREATE PROCEDURE crear_sancion_disciplinaria(
+    IN p_ci VARCHAR(8), IN p_id_torneo INT, IN p_fecha TINYINT UNSIGNED,
+    IN p_cantidad TINYINT UNSIGNED, OUT p_id_sancion INT
+)
+    MODIFIES SQL DATA
+    SQL SECURITY DEFINER
+BEGIN
+    INSERT INTO sancion_jugador (ci_jugador, id_torneo, motivo, numero_fecha_inicio, cantidad_fechas)
+    VALUES (p_ci, p_id_torneo, 'disciplinaria', p_fecha, p_cantidad);
+    SET p_id_sancion = LAST_INSERT_ID();
+END//
+
+CREATE PROCEDURE borrar_sancion_disciplinaria(IN p_id_sancion INT)
+    MODIFIES SQL DATA
+    SQL SECURITY DEFINER
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM sancion_jugador
+                   WHERE id_sancion = p_id_sancion AND motivo = 'disciplinaria') THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Solo se pueden borrar sanciones disciplinarias.';
+    END IF;
+    DELETE FROM sancion_jugador WHERE id_sancion = p_id_sancion;
+END//
+DELIMITER ;
+
 
 DELIMITER //
 CREATE FUNCTION jugador_suspendido(p_ci VARCHAR(8), p_id_torneo INT, p_numero_fecha INT)
@@ -736,6 +764,13 @@ BEGIN
     ) THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'No se puede cargar la planilla de un partido cancelado o postergado.';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM partido p JOIN turno t ON t.id_turno = p.id_turno
+        WHERE p.id_partido = NEW.id_partido AND NOW() < TIMESTAMP(p.dia, t.hora_inicio)
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Todavía no empezó el partido: no se puede cargar la planilla.';
     END IF;
     IF EXISTS (
         SELECT 1 FROM partido p WHERE p.id_partido = NEW.id_partido
@@ -873,10 +908,21 @@ CREATE TRIGGER trg_sancion_validar_insert
 BEFORE INSERT ON sancion_jugador
 FOR EACH ROW
 BEGIN
+    -- Solo las disciplinarias chocan con planillas ya cargadas; las automáticas se generan siempre (S-26).
     IF NEW.motivo = 'disciplinaria' THEN
         IF NOT EXISTS (SELECT 1 FROM torneo WHERE id_torneo = NEW.id_torneo AND estado = 'en curso') THEN
             SIGNAL SQLSTATE '45000'
                 SET MESSAGE_TEXT = 'Las sanciones disciplinarias solo se aplican en una edición en curso.';
+        END IF;
+        IF EXISTS (
+            SELECT 1 FROM planilla_partido pp
+            JOIN partido p ON p.id_partido = pp.id_partido
+            WHERE pp.ci_jugador = NEW.ci_jugador AND p.id_torneo = NEW.id_torneo
+              AND p.numero_fecha BETWEEN NEW.numero_fecha_inicio
+                  AND NEW.numero_fecha_inicio + NEW.cantidad_fechas - 1
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'El jugador ya figura en una planilla de las fechas de la sanción.';
         END IF;
     ELSEIF NOT EXISTS (
         SELECT 1 FROM tarjeta t JOIN partido p ON p.id_partido = t.id_partido
@@ -903,6 +949,16 @@ BEGIN
     ) THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Las sanciones disciplinarias solo se aplican en una edición en curso.';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM planilla_partido pp
+        JOIN partido p ON p.id_partido = pp.id_partido
+        WHERE pp.ci_jugador = NEW.ci_jugador AND p.id_torneo = NEW.id_torneo
+          AND p.numero_fecha BETWEEN NEW.numero_fecha_inicio
+              AND NEW.numero_fecha_inicio + NEW.cantidad_fechas - 1
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'El jugador ya figura en una planilla de las fechas de la sanción.';
     END IF;
 END//
 DELIMITER ;
